@@ -1,4 +1,13 @@
-import { api, clearSession, revokeSession, saveTokens, writeStoredProfile } from './apiClient'
+import {
+  api,
+  clearSession,
+  getAccessToken,
+  readStoredProfile,
+  refreshSession,
+  revokeSession,
+  saveTokens,
+  writeStoredProfile,
+} from './apiClient'
 import type { SessionProfile, TokenResponse, UserResponse } from '../domain/types'
 
 export interface RegisterInput {
@@ -33,6 +42,22 @@ export const authService = {
       password: input.password,
       ...(input.program_id ? { program_id: input.program_id } : {}),
     })
+  },
+
+  async restoreSession(): Promise<SessionProfile | null> {
+    if (getAccessToken()) {
+      return readStoredProfile<SessionProfile>()
+    }
+
+    const tokens = await refreshSession()
+    if (!tokens) {
+      clearSession()
+      return null
+    }
+
+    const profile = profileFromTokens(tokens)
+    writeStoredProfile(profile)
+    return profile
   },
 
   async logout(): Promise<void> {

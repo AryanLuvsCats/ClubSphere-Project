@@ -1,6 +1,13 @@
-from typing import Optional, List
+from typing import List, Literal, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+
+from app.core.authorization import (
+    can_review_proposal,
+    can_view_proposal,
+    branch_id_for_user,
+)
 from app.core.database import get_db
 from app.core.rbac import (
     get_current_active_user,
@@ -121,13 +128,19 @@ def submit_club_proposal(
 
 @router.get("", response_model=ProposalListResponse)
 def list_proposals(
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: Optional[Literal["submitted", "changes_requested", "approved", "rejected"]] = Query(
+        None, alias="status"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """List proposals accessible to the caller's role (Students see own; Reviewers see pending/all)."""
+    """List proposals visible to the caller.
+
+    Students/managers see their own proposals. Faculty and HOD reviewers are
+    restricted to proposals in their own academic branch. Administrators see all.
+    """
     user_role = normalize_role(current_user.role.RoleName if current_user.role else "")
 
     query = db.query(ClubProposal)
@@ -135,21 +148,17 @@ def list_proposals(
     if user_role in (RoleNameEnum.STUDENT.value, RoleNameEnum.CLUB_MANAGER.value):
         # Students and Club Managers only see their own submitted proposals
         query = query.filter(ClubProposal.ApplicantUserId == current_user.UserId)
-    elif user_role == RoleNameEnum.FACULTY.value:
-        # Faculty sees proposals in their department or all submitted
-        if current_user.ProgramId and current_user.program:
-            qdept = db.query(Program).filter(Program.ProgramId == current_user.ProgramId).first()
-            if qdept:
-                query = query.join(Program, ClubProposal.ProgramId == Program.ProgramId)
-                query = query.filter(Program.BranchId == qdept.BranchId)
-    elif user_role == RoleNameEnum.HOD.value:
-        # HOD sees department proposals or all
-        if current_user.ProgramId and current_user.program:
-            qdept = db.query(Program).filter(Program.ProgramId == current_user.ProgramId).first()
-            if qdept:
-                query = query.join(Program, ClubProposal.ProgramId == Program.ProgramId)
-                query = query.filter(Program.BranchId == qdept.BranchId)
-    # Administrator sees all
+    elif user_role in (RoleNameEnum.FACULTY.value, RoleNameEnum.HOD.value):
+        user_branch = branch_id_for_user(current_user)
+        if user_branch is None:
+            # Reviewers without an academic branch cannot see any proposals.
+            query = query.filter(ClubProposal.ProposalId == -1)
+        else:
+            query = query.join(Program, ClubProposal.ProgramId == Program.ProgramId)
+            query = query.filter(Program.BranchId == user_branch)
+    elif user_role != RoleNameEnum.ADMINISTRATOR.value:
+        # Unknown role: fail closed.
+        query = query.filter(ClubProposal.ProposalId == -1)
 
     if status_filter:
         query = query.filter(ClubProposal.Status == status_filter)
@@ -169,16 +178,10 @@ def get_proposal_details(
 ):
     """Retrieve full proposal record with recorded review decisions."""
     proposal = db.query(ClubProposal).filter(ClubProposal.ProposalId == proposal_id).first()
-    if not proposal:
+    # Return 404 for both missing and unauthorized records so IDs cannot be
+    # enumerated across branches.
+    if not proposal or not can_view_proposal(current_user, proposal):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found")
-
-    user_role = normalize_role(current_user.role.RoleName if current_user.role else "")
-    if user_role in (RoleNameEnum.STUDENT.value, RoleNameEnum.CLUB_MANAGER.value):
-        if proposal.ApplicantUserId != current_user.UserId:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You are not authorized to view this proposal",
-            )
 
     created_club = db.query(Club).filter(Club.Name == proposal.ProposedName).first()
     created_club_id = created_club.ClubId if created_club else None
@@ -213,6 +216,12 @@ def review_proposal(
     proposal = db.query(ClubProposal).filter(ClubProposal.ProposalId == proposal_id).first()
     if not proposal:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found")
+
+    if not can_review_proposal(current_user, proposal):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to review this proposal",
+        )
 
     if proposal.Status in ("approved", "rejected"):
         raise HTTPException(

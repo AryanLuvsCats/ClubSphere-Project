@@ -1,16 +1,27 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import List
-from fastapi import FastAPI, Depends, status, Request
+
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.core.config import settings
-from app.core.database import engine, Base, get_db, check_db_health
-from app.models.models import Role, RoleNameEnum
 from app.api.v1.router import api_v1_router
 from app.core.academic_seed import seed_academic_data
+from app.core.config import settings
+from app.core.database import Base, check_db_health, engine, get_db
+from app.core.middleware import (
+    BodySizeLimitMiddleware,
+    HTTPSRedirectMiddleware,
+    SecurityHeadersMiddleware,
+)
+from app.core.logging_filter import setup_secure_logging
+from app.models.models import Role, RoleNameEnum
+
+logger = logging.getLogger("clubsphere")
+setup_secure_logging()
 
 
 def seed_baseline_data():
@@ -35,51 +46,89 @@ def seed_baseline_data():
         # Seed academic data (branches + programs) from JSON if empty
         summary = seed_academic_data(db)
         if summary.get("seeded"):
-            print(
-                f"Academic seed: {summary['branches']} branches, {summary['programs']} programs loaded."
+            logger.info(
+                "Academic seed: %s branches, %s programs loaded.",
+                summary["branches"],
+                summary["programs"],
             )
-    except Exception as e:
+    except Exception:
         db.rollback()
-        print(f"Baseline seed warning: {e}")
+        # Never log the exception text here: SQLAlchemy errors can include a
+        # database URL, and this runs during startup.
+        logger.exception("Baseline seed warning")
     finally:
         db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure tables and baseline seed data exist when running in dev/test SQLite
-    if settings.DATABASE_URL.startswith("sqlite"):
+    # Tests run against an isolated in-memory SQLite database created by
+    # tests/conftest.py, so they must never touch the configured database.
+    if settings.ENVIRONMENT == "testing":
+        yield
+        return
+
+    # Startup: ensure tables and baseline seed data exist.
+    # AUTO_CREATE_SCHEMA only creates missing tables; it never alters existing
+    # ones. Use Alembic migrations for schema changes.
+    if settings.AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(bind=engine)
-        seed_baseline_data()
+    seed_baseline_data()
     yield
     # Shutdown logic if needed
 
 
 def create_application() -> FastAPI:
+    docs_enabled = settings.docs_enabled
     app = FastAPI(
         title="ClubSphere API",
         version="1.0.0",
         description="University Club & Activity Lifecycle Management System — Backend REST APIs",
         lifespan=lifespan,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
 
-    # CORS Middleware
-    origins = settings.CORS_ORIGINS
-    if isinstance(origins, str):
-        origins_list = [o.strip() for o in origins.split(",")]
-    else:
-        origins_list = origins
+    origins_list = (
+        [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+        if isinstance(settings.CORS_ORIGINS, str)
+        else settings.CORS_ORIGINS
+    )
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+        ],
+        max_age=600,
     )
+
+    if settings.ALLOWED_HOSTS and "*" not in settings.ALLOWED_HOSTS:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.ALLOWED_HOSTS,
+        )
+
+    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+    if settings.ENVIRONMENT != "testing":
+        @app.exception_handler(Exception)
+        async def unhandled_exception_handler(request: Request, exc: Exception):
+            logger.exception("Unhandled request error on %s %s", request.method, request.url.path)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": "Internal server error"},
+            )
 
     # Root health smoke check
     @app.get("/health", tags=["Health"])

@@ -117,7 +117,7 @@ class Club(Base):
     CreatedAt = Column(DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (
-        CheckConstraint("Status IN ('pending', 'active', 'suspended')", name="CK_Clubs_Status"),
+        CheckConstraint('"Status" IN (\'pending\', \'active\', \'suspended\')', name="CK_Clubs_Status"),
     )
 
     program = relationship("Program", back_populates="clubs", lazy="joined")
@@ -138,7 +138,7 @@ class ClubMembership(Base):
 
     __table_args__ = (
         UniqueConstraint("ClubId", "UserId", name="UQ_Club_User"),
-        CheckConstraint("Status IN ('requested', 'active', 'removed')", name="CK_ClubMemberships_Status"),
+        CheckConstraint('"Status" IN (\'requested\', \'active\', \'removed\')', name="CK_ClubMemberships_Status"),
     )
 
     club = relationship("Club", back_populates="members")
@@ -159,9 +159,9 @@ class Event(Base):
     CreatedByUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("Capacity > 0", name="CK_Events_Capacity"),
-        CheckConstraint("Status IN ('draft', 'published', 'completed', 'cancelled')", name="CK_Events_Status"),
-        CheckConstraint("RegistrationDeadline <= EventDate", name="CK_Deadline_Before_Event"),
+        CheckConstraint('"Capacity" > 0', name="CK_Events_Capacity"),
+        CheckConstraint('"Status" IN (\'draft\', \'published\', \'completed\', \'cancelled\')', name="CK_Events_Status"),
+        CheckConstraint('"RegistrationDeadline" <= "EventDate"', name="CK_Deadline_Before_Event"),
         Index("IX_Events_ClubId_Date", "ClubId", "EventDate"),
     )
 
@@ -183,7 +183,7 @@ class EventRegistration(Base):
 
     __table_args__ = (
         UniqueConstraint("EventId", "UserId", name="UQ_Event_User_Reg"),
-        CheckConstraint("Status IN ('confirmed', 'waitlisted', 'cancelled')", name="CK_EventRegistrations_Status"),
+        CheckConstraint('"Status" IN (\'confirmed\', \'waitlisted\', \'cancelled\')', name="CK_EventRegistrations_Status"),
         Index("IX_Reg_EventId_Status", "EventId", "Status"),
     )
 
@@ -221,7 +221,7 @@ class ClubProposal(Base):
     SubmittedAt = Column(DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (
-        CheckConstraint("Status IN ('submitted', 'changes_requested', 'approved', 'rejected')", name="CK_ClubProposals_Status"),
+        CheckConstraint('"Status" IN (\'submitted\', \'changes_requested\', \'approved\', \'rejected\')', name="CK_ClubProposals_Status"),
     )
 
     applicant = relationship("User", back_populates="proposals", lazy="joined")
@@ -241,8 +241,8 @@ class Approval(Base):
     DecidedAt = Column(DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (
-        CheckConstraint("Stage IN ('faculty', 'hod')", name="CK_Approvals_Stage"),
-        CheckConstraint("Decision IN ('approve', 'reject', 'changes_requested')", name="CK_Approvals_Decision"),
+        CheckConstraint('"Stage" IN (\'faculty\', \'hod\')', name="CK_Approvals_Stage"),
+        CheckConstraint('"Decision" IN (\'approve\', \'reject\', \'changes_requested\')', name="CK_Approvals_Decision"),
     )
 
     proposal = relationship("ClubProposal", back_populates="approvals")
@@ -296,6 +296,59 @@ class AuditLog(Base):
     )
 
     actor = relationship("User", lazy="joined")
+
+
+class RefreshSession(Base):
+    """Server-side refresh-token session with rotation/reuse detection.
+
+    Only a SHA-256 digest of the opaque refresh token is stored. Revoking the
+    row (or the whole family) invalidates the corresponding refresh token.
+    """
+
+    __tablename__ = "RefreshSessions"
+
+    SessionId = Column(String(64), primary_key=True, index=True)
+    UserId = Column(
+        Integer,
+        ForeignKey("Users.UserId", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    FamilyId = Column(String(64), nullable=False, index=True)
+    TokenHash = Column(String(64), unique=True, nullable=False, index=True)
+    IssuedAt = Column(DateTime, nullable=False, default=utc_now)
+    ExpiresAt = Column(DateTime, nullable=False)
+    RevokedAt = Column(DateTime, nullable=True)
+    ReplacedBySessionId = Column(String(64), nullable=True)
+    ReplacedAt = Column(DateTime, nullable=True)
+    IpAddress = Column(String(45), nullable=True)
+    UserAgent = Column(String(255), nullable=True)
+
+    __table_args__ = (
+        Index("IX_RefreshSessions_UserId_FamilyId", "UserId", "FamilyId"),
+        Index("IX_RefreshSessions_ExpiresAt", "ExpiresAt"),
+    )
+
+    user = relationship("User")
+
+
+class AuthThrottle(Base):
+    """Persistent brute-force / abuse counters for authentication endpoints."""
+
+    __tablename__ = "AuthThrottle"
+
+    ThrottleId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    Scope = Column(String(32), nullable=False)
+    KeyHash = Column(String(64), nullable=False)
+    FailureCount = Column(Integer, nullable=False, default=0)
+    WindowStartedAt = Column(DateTime, nullable=False, default=utc_now)
+    BlockedUntil = Column(DateTime, nullable=True)
+    UpdatedAt = Column(DateTime, nullable=False, default=utc_now)
+
+    __table_args__ = (
+        UniqueConstraint("Scope", "KeyHash", name="UQ_AuthThrottle_Scope_Key"),
+        Index("IX_AuthThrottle_BlockedUntil", "BlockedUntil"),
+    )
 
 
 class UploadedFile(Base):

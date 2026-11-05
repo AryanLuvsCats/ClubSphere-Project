@@ -1,8 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel
+
+from app.schemas.common import StrictRequestModel
 
 
-class UploadResponse(BaseModel):
+class UploadResponse(StrictRequestModel):
     upload_id: str
     original_filename: str
     entity_type: str

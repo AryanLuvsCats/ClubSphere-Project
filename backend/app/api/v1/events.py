@@ -1,14 +1,23 @@
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import List, Literal, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.core.authorization import (
+    PUBLIC_EVENT_STATUSES,
+    can_view_event,
+    can_view_event_outcome,
+    is_admin,
+)
 from app.core.database import get_db
 from app.core.rbac import (
-    get_current_active_user,
     check_club_ownership,
-    RoleNameEnum,
+    get_current_active_user,
+    get_optional_current_user,
     normalize_role,
+    RoleNameEnum,
 )
 from app.core.audit import record_audit_log
 from app.models.models import (
@@ -53,21 +62,34 @@ def check_event_management_authority(event: Event, user: User, db: Session) -> N
 
 @router.get("", response_model=EventListResponse)
 def list_events(
-    club_id: Optional[int] = None,
-    status_filter: Optional[str] = Query(None, alias="status"),
+    club_id: Optional[int] = Query(None, gt=0),
+    status_filter: Optional[Literal["draft", "published", "completed", "cancelled"]] = Query(
+        None, alias="status"
+    ),
     from_date: Optional[datetime] = None,
     to_date: Optional[datetime] = None,
-    search: Optional[str] = None,
+    search: Optional[str] = Query(None, max_length=100),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    """List and filter university events with pagination and real-time seat availability."""
+    """List events. Draft/cancelled events are only visible to their manager/admin."""
     query = db.query(Event)
 
     if club_id:
         query = query.filter(Event.ClubId == club_id)
     if status_filter:
+        if status_filter not in PUBLIC_EVENT_STATUSES:
+            if current_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authentication is required to view non-public events",
+                )
+            if not is_admin(current_user):
+                query = query.join(Club, Event.ClubId == Club.ClubId).filter(
+                    Club.ManagerUserId == current_user.UserId
+                )
         query = query.filter(Event.Status == status_filter)
     else:
         # Default public listing shows published events
@@ -78,8 +100,12 @@ def list_events(
     if to_date:
         query = query.filter(Event.EventDate <= to_date)
     if search:
-        search_fmt = f"%{search.strip()}%"
-        query = query.filter(Event.Title.ilike(search_fmt) | Event.VenueText.ilike(search_fmt))
+        escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_fmt = f"%{escaped}%"
+        query = query.filter(
+            Event.Title.ilike(search_fmt, escape="\\")
+            | Event.VenueText.ilike(search_fmt, escape="\\")
+        )
 
     total = query.count()
     events = query.order_by(Event.EventDate.asc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -142,11 +168,12 @@ def get_my_registrations(
 @router.get("/{event_id}", response_model=EventResponse)
 def get_event_details(
     event_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    """Retrieve event details, deadline, and live seat count."""
+    """Retrieve an event. Draft/cancelled events are hidden from the public."""
     event = db.query(Event).filter(Event.EventId == event_id).first()
-    if not event:
+    if not event or not can_view_event(current_user, event):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Event with ID {event_id} not found",
@@ -316,10 +343,10 @@ def register_for_event(
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
-    if event.Status != "published":
+    if event.Status != "published" or (event.club is not None and event.club.Status != "active"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Registrations are closed because event status is '{event.Status}'",
+            detail="Registrations are not open for this event",
         )
 
     # Registration Deadline Check
@@ -480,15 +507,14 @@ def record_attendance(
     ).all()
     confirmed_user_map = {r.UserId: r for r in confirmed_regs}
 
-    # Verify that all user_ids in payload are confirmed registrants
-    for uid in payload.user_ids:
-        if uid not in confirmed_user_map:
-            user_obj = db.query(User).filter(User.UserId == uid).first()
-            user_desc = user_obj.FullName if user_obj else f"User ID {uid}"
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Attendance recording failed: {user_desc} is not confirmed registered for this event",
-            )
+    # Verify that all user_ids in payload are confirmed registrants. Do not
+    # echo user names here: this endpoint is manager-only, but a generic message
+    # avoids turning it into a user-directory oracle.
+    if any(uid not in confirmed_user_map for uid in payload.user_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attendance recording failed: one or more users are not confirmed registrants for this event",
+        )
 
     marked_count = 0
     for uid in set(payload.user_ids):
@@ -528,11 +554,19 @@ def record_attendance(
 @router.get("/{event_id}/outcomes", response_model=EventOutcomeResponse)
 def get_event_outcome(
     event_id: int,
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Retrieve post-event outcome summary and verified attendance metrics."""
-    outcome = db.query(EventOutcome).filter(EventOutcome.EventId == event_id).first()
-    if not outcome:
+    """Retrieve outcomes for managers/admin or students registered for the event."""
+    event = db.query(Event).filter(Event.EventId == event_id).first()
+    outcome = (
+        db.query(EventOutcome).filter(EventOutcome.EventId == event_id).first()
+        if event
+        else None
+    )
+    if not event or not outcome or not can_view_event_outcome(
+        current_user, event, outcome, db
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event outcome report has not yet been submitted for this event",
@@ -574,7 +608,15 @@ def create_event_outcome(
         Attendance.EventId == event_id
     ).scalar() or 0
 
-    snapshot_count = payload.attendance_count_snapshot if payload.attendance_count_snapshot is not None else actual_attendance
+    if (
+        payload.attendance_count_snapshot is not None
+        and payload.attendance_count_snapshot != actual_attendance
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="attendance_count_snapshot must match the recorded attendance count",
+        )
+    snapshot_count = actual_attendance
 
     outcome = EventOutcome(
         EventId=event_id,

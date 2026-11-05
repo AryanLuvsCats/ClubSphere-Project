@@ -34,14 +34,7 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = decode_token(credentials.credentials)
-    token_type = payload.get("type")
-    if token_type != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type for API access. Access token required.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    payload = decode_token(credentials.credentials, expected_type="access")
 
     user_id_str = payload.get("sub")
     if not user_id_str:
@@ -73,13 +66,39 @@ def get_current_user(
         )
 
     token_version = payload.get("token_version")
-    if token_version is not None and token_version != user.TokenVersion:
+    if not isinstance(token_version, int) or token_version != user.TokenVersion:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session has been revoked or invalidated. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    return user
+
+
+def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Resolve a user when a valid token is present, otherwise return None.
+
+    Used by endpoints that are public but expose additional records to
+    authenticated managers/administrators. Invalid tokens are treated as
+    anonymous; protected endpoints must continue to use get_current_user.
+    """
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        payload = decode_token(credentials.credentials, expected_type="access")
+        user_id = int(payload.get("sub", ""))
+    except (HTTPException, TypeError, ValueError):
+        return None
+
+    user = db.query(User).filter(User.UserId == user_id).first()
+    if not user or not user.IsActive:
+        return None
+    if payload.get("token_version") != user.TokenVersion:
+        return None
     return user
 
 

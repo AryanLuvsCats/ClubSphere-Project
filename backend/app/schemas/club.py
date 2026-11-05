@@ -1,24 +1,27 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field
+from typing import List, Optional
+
+from pydantic import Field
+
+from app.schemas.common import StrictRequestModel
 
 
-class ClubCreateRequest(BaseModel):
+class ClubCreateRequest(StrictRequestModel):
     name: str = Field(..., min_length=2, max_length=150)
-    program_id: int
-    manager_user_id: int
-    description: Optional[str] = None
+    program_id: int = Field(..., gt=0)
+    manager_user_id: int = Field(..., gt=0)
+    description: Optional[str] = Field(default=None, max_length=5000)
     status: str = Field(default="active", pattern="^(pending|active|suspended)$")
 
 
-class ClubUpdateRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=2, max_length=150)
-    description: Optional[str] = None
-    status: Optional[str] = Field(None, pattern="^(pending|active|suspended)$")
-    manager_user_id: Optional[int] = None
+class ClubUpdateRequest(StrictRequestModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=150)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    status: Optional[str] = Field(default=None, pattern="^(pending|active|suspended)$")
+    manager_user_id: Optional[int] = Field(default=None, gt=0)
 
 
-class ClubResponse(BaseModel):
+class ClubResponse(StrictRequestModel):
     club_id: int
     name: str
     program_id: int
@@ -32,18 +35,15 @@ class ClubResponse(BaseModel):
     created_at: datetime
     member_count: Optional[int] = 0
 
-    class Config:
-        from_attributes = True
 
-
-class ClubListResponse(BaseModel):
+class ClubListResponse(StrictRequestModel):
     items: List[ClubResponse]
     total: int
     page: int
     page_size: int
 
 
-class MembershipJoinResponse(BaseModel):
+class MembershipJoinResponse(StrictRequestModel):
     membership_id: int
     club_id: int
     user_id: int
@@ -51,12 +51,12 @@ class MembershipJoinResponse(BaseModel):
     joined_at: datetime
 
 
-class MembershipUpdateRequest(BaseModel):
-    status: Optional[str] = Field(None, pattern="^(requested|active|removed)$")
-    role: Optional[str] = Field(None, pattern="^(Member|Lead)$")
+class MembershipUpdateRequest(StrictRequestModel):
+    status: Optional[str] = Field(default=None, pattern="^(requested|active|removed)$")
+    role: Optional[str] = Field(default=None, pattern="^(Member|Lead)$")
 
 
-class MembershipMemberResponse(BaseModel):
+class MembershipMemberResponse(StrictRequestModel):
     membership_id: int
     club_id: int
     user_id: int
@@ -67,7 +67,7 @@ class MembershipMemberResponse(BaseModel):
     joined_at: datetime
 
 
-class MembershipListResponse(BaseModel):
+class MembershipListResponse(StrictRequestModel):
     items: List[MembershipMemberResponse]
     total: int
     page: int

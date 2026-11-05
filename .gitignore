@@ -16,3 +16,14 @@ node_modules/
 dist/
 
 
+.neon
+.env.local
+
+# Large local archives
+*.rar
+*.zip
+
+# Local agent tooling / scratch files
+.agents/
+skills-lock.json
+neon.ts

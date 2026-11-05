@@ -1,6 +1,19 @@
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+
+# Force a self-contained test configuration BEFORE any app module is imported.
+# Environment variables take precedence over .env files in pydantic-settings,
+# so this guarantees the suite never opens a connection to the real Neon database.
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ.pop("DATABASE_URL_UNPOOLED", None)
+# Keep routine fixtures from tripping persistent auth throttles. Individual
+# security tests lower these thresholds with monkeypatch.
+os.environ["RATE_LIMIT_LOGIN_ATTEMPTS"] = "100"
+os.environ["RATE_LIMIT_REGISTER_ATTEMPTS"] = "100"
+os.environ["RATE_LIMIT_REFRESH_ATTEMPTS"] = "100"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -149,7 +162,11 @@ def student_user(db_session):
 
 @pytest.fixture
 def student_token(student_user):
-    return create_access_token(subject=student_user.UserId, role=RoleNameEnum.STUDENT.value)
+    return create_access_token(
+        subject=student_user.UserId,
+        role=RoleNameEnum.STUDENT.value,
+        token_version=student_user.TokenVersion,
+    )
 
 
 @pytest.fixture
@@ -159,7 +176,11 @@ def student2_user(db_session):
 
 @pytest.fixture
 def student2_token(student2_user):
-    return create_access_token(subject=student2_user.UserId, role=RoleNameEnum.STUDENT.value)
+    return create_access_token(
+        subject=student2_user.UserId,
+        role=RoleNameEnum.STUDENT.value,
+        token_version=student2_user.TokenVersion,
+    )
 
 
 @pytest.fixture
@@ -169,7 +190,11 @@ def manager_user(db_session):
 
 @pytest.fixture
 def manager_token(manager_user):
-    return create_access_token(subject=manager_user.UserId, role=RoleNameEnum.CLUB_MANAGER.value)
+    return create_access_token(
+        subject=manager_user.UserId,
+        role=RoleNameEnum.CLUB_MANAGER.value,
+        token_version=manager_user.TokenVersion,
+    )
 
 
 @pytest.fixture
@@ -179,7 +204,11 @@ def faculty_user(db_session):
 
 @pytest.fixture
 def faculty_token(faculty_user):
-    return create_access_token(subject=faculty_user.UserId, role=RoleNameEnum.FACULTY.value)
+    return create_access_token(
+        subject=faculty_user.UserId,
+        role=RoleNameEnum.FACULTY.value,
+        token_version=faculty_user.TokenVersion,
+    )
 
 
 @pytest.fixture
@@ -189,7 +218,11 @@ def hod_user(db_session):
 
 @pytest.fixture
 def hod_token(hod_user):
-    return create_access_token(subject=hod_user.UserId, role=RoleNameEnum.HOD.value)
+    return create_access_token(
+        subject=hod_user.UserId,
+        role=RoleNameEnum.HOD.value,
+        token_version=hod_user.TokenVersion,
+    )
 
 
 @pytest.fixture
@@ -199,7 +232,11 @@ def admin_user(db_session):
 
 @pytest.fixture
 def admin_token(admin_user):
-    return create_access_token(subject=admin_user.UserId, role=RoleNameEnum.ADMINISTRATOR.value)
+    return create_access_token(
+        subject=admin_user.UserId,
+        role=RoleNameEnum.ADMINISTRATOR.value,
+        token_version=admin_user.TokenVersion,
+    )
 
 
 @pytest.fixture

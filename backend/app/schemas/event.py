@@ -1,16 +1,27 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field, model_validator
+from typing import List, Optional
+
+from pydantic import Field, field_validator, model_validator
+
+from app.schemas.common import StrictRequestModel
 
 
-class EventCreateRequest(BaseModel):
-    club_id: int
+class EventCreateRequest(StrictRequestModel):
+    club_id: int = Field(..., gt=0)
     title: str = Field(..., min_length=2, max_length=200)
-    venue_text: Optional[str] = Field(None, max_length=200)
+    venue_text: Optional[str] = Field(default=None, max_length=200)
     event_date: datetime
     registration_deadline: datetime
-    capacity: int = Field(..., gt=0, description="Capacity must be greater than zero")
-    status: Optional[str] = Field("draft", pattern="^(draft|published|completed|cancelled)$")
+    capacity: int = Field(
+        ...,
+        gt=0,
+        le=100000,
+        description="Capacity must be greater than zero",
+    )
+    status: Optional[str] = Field(
+        default="draft",
+        pattern="^(draft|published|completed|cancelled)$",
+    )
 
     @model_validator(mode="after")
     def validate_deadline_before_event(self) -> "EventCreateRequest":
@@ -19,13 +30,16 @@ class EventCreateRequest(BaseModel):
         return self
 
 
-class EventUpdateRequest(BaseModel):
-    title: Optional[str] = Field(None, min_length=2, max_length=200)
-    venue_text: Optional[str] = None
+class EventUpdateRequest(StrictRequestModel):
+    title: Optional[str] = Field(default=None, min_length=2, max_length=200)
+    venue_text: Optional[str] = Field(default=None, max_length=200)
     event_date: Optional[datetime] = None
     registration_deadline: Optional[datetime] = None
-    capacity: Optional[int] = Field(None, gt=0)
-    status: Optional[str] = Field(None, pattern="^(draft|published|completed|cancelled)$")
+    capacity: Optional[int] = Field(default=None, gt=0, le=100000)
+    status: Optional[str] = Field(
+        default=None,
+        pattern="^(draft|published|completed|cancelled)$",
+    )
 
     @model_validator(mode="after")
     def validate_dates(self) -> "EventUpdateRequest":
@@ -35,7 +49,7 @@ class EventUpdateRequest(BaseModel):
         return self
 
 
-class EventResponse(BaseModel):
+class EventResponse(StrictRequestModel):
     event_id: int
     club_id: int
     club_name: Optional[str] = None
@@ -49,18 +63,15 @@ class EventResponse(BaseModel):
     confirmed_registrations: int = 0
     seats_left: int = 0
 
-    class Config:
-        from_attributes = True
 
-
-class EventListResponse(BaseModel):
+class EventListResponse(StrictRequestModel):
     items: List[EventResponse]
     total: int
     page: int
     page_size: int
 
 
-class RegistrationResponse(BaseModel):
+class RegistrationResponse(StrictRequestModel):
     registration_id: int
     event_id: int
     user_id: int
@@ -68,7 +79,7 @@ class RegistrationResponse(BaseModel):
     registered_at: datetime
 
 
-class RegistrationRosterItem(BaseModel):
+class RegistrationRosterItem(StrictRequestModel):
     registration_id: int
     event_id: int
     user_id: int
@@ -79,35 +90,44 @@ class RegistrationRosterItem(BaseModel):
     attended: bool = False
 
 
-class RegistrationListResponse(BaseModel):
+class RegistrationListResponse(StrictRequestModel):
     items: List[RegistrationRosterItem]
     total: int
     page: int
     page_size: int
 
 
-class AttendanceRecordRequest(BaseModel):
-    user_ids: List[int] = Field(..., min_length=1, description="List of user IDs to mark present")
+class AttendanceRecordRequest(StrictRequestModel):
+    user_ids: List[int] = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="List of user IDs to mark present",
+    )
+
+    @field_validator("user_ids")
+    @classmethod
+    def validate_user_ids(cls, value: List[int]) -> List[int]:
+        if any(user_id <= 0 for user_id in value):
+            raise ValueError("user_ids must contain positive integers")
+        return list(dict.fromkeys(value))
 
 
-class AttendanceResponse(BaseModel):
+class AttendanceResponse(StrictRequestModel):
     event_id: int
     marked_present: int
     total_confirmed: int
 
 
-class EventOutcomeCreateRequest(BaseModel):
-    summary: str = Field(..., min_length=5)
-    attendance_count_snapshot: Optional[int] = None
+class EventOutcomeCreateRequest(StrictRequestModel):
+    summary: str = Field(..., min_length=5, max_length=5000)
+    attendance_count_snapshot: Optional[int] = Field(default=None, ge=0, le=100000)
 
 
-class EventOutcomeResponse(BaseModel):
+class EventOutcomeResponse(StrictRequestModel):
     outcome_id: int
     event_id: int
     summary: Optional[str] = None
     attendance_count_snapshot: int
     submitted_by_user_id: int
     submitted_at: datetime
-
-    class Config:
-        from_attributes = True

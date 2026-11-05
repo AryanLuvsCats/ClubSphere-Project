@@ -1,14 +1,18 @@
-from typing import Optional
+from typing import Literal, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.core.authorization import can_view_club, is_admin, role_name
 from app.core.database import get_db
 from app.core.rbac import (
-    get_current_active_user,
-    require_roles,
     check_club_ownership,
-    RoleNameEnum,
+    get_current_active_user,
+    get_optional_current_user,
     normalize_role,
+    require_roles,
+    RoleNameEnum,
 )
 from app.core.audit import record_audit_log
 from app.models.models import (
@@ -34,15 +38,18 @@ router = APIRouter(prefix="/clubs", tags=["Clubs & Memberships"])
 
 @router.get("", response_model=ClubListResponse)
 def list_clubs(
-    program_id: Optional[int] = None,
-    branch_id: Optional[int] = None,
-    status_filter: Optional[str] = Query(None, alias="status"),
-    search: Optional[str] = None,
+    program_id: Optional[int] = Query(None, gt=0),
+    branch_id: Optional[int] = Query(None, gt=0),
+    status_filter: Optional[Literal["pending", "active", "suspended"]] = Query(
+        None, alias="status"
+    ),
+    search: Optional[str] = Query(None, max_length=100),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    """List and search university clubs with program and status filters."""
+    """List clubs. Non-active records are only visible to their manager or an admin."""
     query = db.query(Club).join(Program, Club.ProgramId == Program.ProgramId)
 
     if program_id:
@@ -50,13 +57,25 @@ def list_clubs(
     if branch_id:
         query = query.filter(Program.BranchId == branch_id)
     if status_filter:
+        if status_filter != "active":
+            if current_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Authentication is required to view non-active clubs",
+                )
+            if not is_admin(current_user):
+                query = query.filter(Club.ManagerUserId == current_user.UserId)
         query = query.filter(Club.Status == status_filter)
     else:
         query = query.filter(Club.Status == "active")
 
     if search:
-        search_fmt = f"%{search.strip()}%"
-        query = query.filter(Club.Name.ilike(search_fmt) | Club.Description.ilike(search_fmt))
+        escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_fmt = f"%{escaped}%"
+        query = query.filter(
+            Club.Name.ilike(search_fmt, escape="\\")
+            | Club.Description.ilike(search_fmt, escape="\\")
+        )
 
     total = query.count()
     clubs = query.order_by(Club.Name.asc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -93,11 +112,12 @@ def list_clubs(
 @router.get("/{club_id}", response_model=ClubResponse)
 def get_club_details(
     club_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    """Retrieve full details and statistics for a specific club."""
+    """Retrieve a club. Pending/suspended clubs are hidden from the public."""
     club = db.query(Club).filter(Club.ClubId == club_id).first()
-    if not club:
+    if not club or not can_view_club(current_user, club):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Club with ID {club_id} not found",
@@ -362,7 +382,9 @@ def request_join_club(
 @router.get("/{club_id}/members", response_model=MembershipListResponse)
 def list_club_members(
     club_id: int,
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: Optional[Literal["requested", "active", "removed"]] = Query(
+        None, alias="status"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),

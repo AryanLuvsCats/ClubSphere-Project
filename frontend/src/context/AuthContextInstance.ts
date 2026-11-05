@@ -5,6 +5,7 @@ import type { RegisterInput } from '../services/authService'
 export interface AuthContextValue {
   user: SessionProfile | null
   isAuthenticated: boolean
+  isInitializing: boolean
   login: (email: string, password: string) => Promise<void>
   register: (input: RegisterInput) => Promise<UserResponse>
   logout: () => Promise<void>

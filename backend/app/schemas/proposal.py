@@ -1,27 +1,32 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field, model_validator
+from typing import List, Optional
+
+from pydantic import Field, model_validator
+
+from app.schemas.common import StrictRequestModel
 
 
-class ProposalCreateRequest(BaseModel):
+class ProposalCreateRequest(StrictRequestModel):
     proposed_name: str = Field(..., min_length=2, max_length=150)
-    program_id: int
-    description: str = Field(..., min_length=10)
+    program_id: int = Field(..., gt=0)
+    description: str = Field(..., min_length=10, max_length=5000)
 
 
-class ProposalReviewRequest(BaseModel):
+class ProposalReviewRequest(StrictRequestModel):
     decision: str = Field(..., pattern="^(approve|reject|changes_requested)$")
-    comment: Optional[str] = None
+    comment: Optional[str] = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
     def validate_comment_on_rejection(self) -> "ProposalReviewRequest":
         if self.decision in ("reject", "changes_requested"):
             if not self.comment or not self.comment.strip():
-                raise ValueError(f"A descriptive comment is required when decision is '{self.decision}'")
+                raise ValueError(
+                    f"A descriptive comment is required when decision is '{self.decision}'"
+                )
         return self
 
 
-class ApprovalResponse(BaseModel):
+class ApprovalResponse(StrictRequestModel):
     approval_id: int
     proposal_id: int
     reviewer_user_id: int
@@ -31,11 +36,8 @@ class ApprovalResponse(BaseModel):
     comment: Optional[str] = None
     decided_at: datetime
 
-    class Config:
-        from_attributes = True
 
-
-class ProposalResponse(BaseModel):
+class ProposalResponse(StrictRequestModel):
     proposal_id: int
     applicant_user_id: int
     applicant_name: Optional[str] = None
@@ -47,14 +49,11 @@ class ProposalResponse(BaseModel):
     description: str
     status: str
     submitted_at: datetime
-    approvals: List[ApprovalResponse] = []
+    approvals: List[ApprovalResponse] = Field(default_factory=list)
     created_club_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
 
-
-class ProposalListResponse(BaseModel):
+class ProposalListResponse(StrictRequestModel):
     items: List[ProposalResponse]
     total: int
     page: int

@@ -6,7 +6,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import AuditLog, Club, Event, EventRegistration, User
+from app.models.models import (
+    AuditLog,
+    Club,
+    Event,
+    EventRegistration,
+    Role,
+    RoleNameEnum,
+    User,
+)
 
 router = APIRouter(tags=["Platform Metadata"])
 
@@ -41,13 +49,28 @@ def last_updated(db: Session = Depends(get_db)):
     see how current the seeded data is. Public by design -- it exposes no
     record content, only aggregate timestamps and counts.
     """
+    public_event_statuses = ("published", "completed")
     last_audit = db.query(func.max(AuditLog.CreatedAt)).scalar()
-    last_club = db.query(func.max(Club.CreatedAt)).scalar()
-    last_user = db.query(func.max(User.CreatedAt)).scalar()
+    # Public metadata must not disclose pending clubs or draft events.
+    last_club = (
+        db.query(func.max(Club.CreatedAt))
+        .filter(Club.Status == "active")
+        .scalar()
+    )
+    last_user = (
+        db.query(func.max(User.CreatedAt))
+        .join(Role, User.RoleId == Role.RoleId)
+        .filter(Role.RoleName == RoleNameEnum.STUDENT.value)
+        .scalar()
+    )
 
     # Events have no CreatedAt column; EventDate is the closest thing to
     # "when this event was added to the platform".
-    last_event_date = db.query(func.max(Event.EventDate)).scalar()
+    last_event_date = (
+        db.query(func.max(Event.EventDate))
+        .filter(Event.Status.in_(public_event_statuses))
+        .scalar()
+    )
 
     candidates = [d for d in (last_audit, last_club, last_user) if d is not None]
     latest = max(candidates) if candidates else None
@@ -59,10 +82,24 @@ def last_updated(db: Session = Depends(get_db)):
         "last_user_created_at": _iso(last_user),
         "latest_event_date": _iso(last_event_date),
         "counts": {
-            "clubs": db.query(func.count(Club.ClubId)).scalar() or 0,
-            "events": db.query(func.count(Event.EventId)).scalar() or 0,
-            "registrations": db.query(func.count(EventRegistration.RegistrationId)).scalar() or 0,
-            "students": db.query(func.count(User.UserId)).scalar() or 0,
+            "clubs": db.query(func.count(Club.ClubId))
+            .filter(Club.Status == "active")
+            .scalar()
+            or 0,
+            "events": db.query(func.count(Event.EventId))
+            .filter(Event.Status.in_(public_event_statuses))
+            .scalar()
+            or 0,
+            "registrations": db.query(func.count(EventRegistration.RegistrationId))
+            .join(Event, EventRegistration.EventId == Event.EventId)
+            .filter(Event.Status.in_(public_event_statuses))
+            .scalar()
+            or 0,
+            "students": db.query(func.count(User.UserId))
+            .join(Role, User.RoleId == Role.RoleId)
+            .filter(Role.RoleName == RoleNameEnum.STUDENT.value)
+            .scalar()
+            or 0,
         },
         "generated_at": _iso(datetime.now(timezone.utc)),
     }

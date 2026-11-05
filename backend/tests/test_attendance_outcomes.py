@@ -41,7 +41,7 @@ def test_attendance_and_outcomes_lifecycle(client, sample_club, manager_token, s
         headers={"Authorization": f"Bearer {manager_token}"},
     )
     assert att_fail.status_code == 400
-    assert "not confirmed registered" in att_fail.json()["detail"].lower()
+    assert "not confirmed registrants" in att_fail.json()["detail"].lower()
 
     # 5. Manager submits event outcome report
     out_res = client.post(
@@ -52,7 +52,14 @@ def test_attendance_and_outcomes_lifecycle(client, sample_club, manager_token, s
     assert out_res.status_code == 201
     assert out_res.json()["attendance_count_snapshot"] == 1
 
-    # 6. Verify event outcome query
-    get_out = client.get(f"/api/v1/events/{event.EventId}/outcomes")
+    # 6. Verify event outcome query requires authentication and is visible to a
+    # confirmed registrant.
+    anonymous_out = client.get(f"/api/v1/events/{event.EventId}/outcomes")
+    assert anonymous_out.status_code == 401
+
+    get_out = client.get(
+        f"/api/v1/events/{event.EventId}/outcomes",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
     assert get_out.status_code == 200
     assert "hands-on engagement" in get_out.json()["summary"]
