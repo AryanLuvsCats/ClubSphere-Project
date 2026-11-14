@@ -64,18 +64,13 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function PageHeader({ title, subtitle, icon }: { title: string; subtitle?: string; icon?: ReactNode }) {
   return (
-    <header className="mb-8">
-      <div className="flex items-center gap-3">
-        {icon && (
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blood/25 bg-blood/10 text-xl">
-            {icon}
-          </div>
-        )}
-        <h1 className="min-w-0 break-words text-3xl font-extrabold tracking-tight text-bean sm:text-4xl">
-          {title}
-        </h1>
+    <header className="page-heading">
+      <div className="page-heading-topline">
+        <span className="page-kicker">ClubSphere <span aria-hidden="true">/</span> Campus life</span>
+        {icon && <span className="page-heading-mark" aria-hidden="true">{icon}</span>}
       </div>
-      {subtitle && <p className="mt-2 max-w-2xl text-sm text-olive">{subtitle}</p>}
+      <h1 className="page-title">{title}</h1>
+      {subtitle && <p className="page-subtitle">{subtitle}</p>}
     </header>
   )
 }

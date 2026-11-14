@@ -26,9 +26,10 @@ function StatCard({
   accent: string
 }) {
   return (
-    <div className="rounded-2xl border border-rose/30 bg-white p-5 shadow-sm">
-      <p className="text-xs uppercase tracking-wider text-olive font-medium">{label}</p>
-      <p className={`mt-2 text-3xl font-extrabold ${accent}`}>{value}</p>
+    <div className="editorial-card relative overflow-hidden p-5">
+      <span className="absolute inset-x-0 top-0 h-1 bg-blood/70" />
+      <p className="editorial-label">{label}</p>
+      <p className={`mt-2 font-serif text-4xl font-semibold leading-none ${accent}`}>{value}</p>
       {hint && <p className="mt-1 text-xs text-olive">{hint}</p>}
     </div>
   )
@@ -56,10 +57,14 @@ function ProposalCard({
   const actionable = canReview && (proposal.status === 'submitted' || proposal.status === 'changes_requested')
 
   return (
-    <article className="rounded-2xl border border-rose/30 bg-white p-5 shadow-sm">
+    <article className="editorial-card p-5 sm:p-6">
+      <div className="mb-3 flex items-center justify-between border-b border-rose/25 pb-2">
+        <span className="editorial-label">Charter proposal / {String(proposal.proposal_id).padStart(3, '0')}</span>
+        <StatusBadge status={proposal.status} />
+      </div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold text-bean">{proposal.proposed_name}</h3>
+          <h3 className="text-2xl font-semibold text-bean">{proposal.proposed_name}</h3>
           <p className="mt-0.5 text-xs text-olive">
             by <span className="font-medium text-bean">{proposal.applicant_name ?? 'Unknown applicant'}</span>
             {' • '}
@@ -67,7 +72,6 @@ function ProposalCard({
             {proposal.branch_name && ` (${proposal.branch_name})`}
           </p>
         </div>
-        <StatusBadge status={proposal.status} />
       </div>
 
       <p className="mt-3 text-xs leading-relaxed text-olive">{proposal.description}</p>
@@ -117,7 +121,7 @@ function ProposalCard({
               type="button"
               disabled={reviewing}
               onClick={() => onReview('approve')}
-              className="rounded-xl bg-olive px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-olive/90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="editorial-button bg-olive px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-bean disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {reviewing
                 ? 'Recording…'
@@ -129,7 +133,7 @@ function ProposalCard({
               type="button"
               disabled={reviewing}
               onClick={() => onReview('changes_requested')}
-              className="rounded-xl border border-rose/40 bg-rose/10 px-3.5 py-2 text-xs font-semibold text-bean transition hover:bg-rose/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="editorial-button border border-rose/40 bg-rose/10 px-3.5 py-2 text-xs font-semibold text-bean transition hover:bg-rose/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               Request changes
             </button>
@@ -137,7 +141,7 @@ function ProposalCard({
               type="button"
               disabled={reviewing}
               onClick={() => onReview('reject')}
-              className="rounded-xl border border-blood/40 bg-blood/10 px-3.5 py-2 text-xs font-semibold text-blood transition hover:bg-blood/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="editorial-button border border-blood/40 bg-blood/10 px-3.5 py-2 text-xs font-semibold text-blood transition hover:bg-blood/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               Reject
             </button>
@@ -271,7 +275,8 @@ export default function AdminDashboardPage() {
       <section className={allowedAnalytics ? 'mt-10' : 'mt-2'}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-bean">Club applications</h2>
+            <p className="editorial-label">The review desk</p>
+            <h2 className="mt-1 text-3xl font-semibold text-bean">Club applications</h2>
             <p className="mt-1 text-xs text-olive">
               Proposals to charter new student clubs.
               {isFaculty
@@ -287,8 +292,8 @@ export default function AdminDashboardPage() {
                 onClick={() => setStatusFilter(tab.key)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
                   statusFilter === tab.key
-                    ? 'bg-blood text-white shadow-lg shadow-blood/20'
-                    : 'border border-rose/30 bg-white text-olive hover:border-blood/40 hover:text-bean'
+                    ? 'bg-blood text-white shadow-sm'
+                    : 'border border-rose/30 bg-white/75 text-olive hover:border-blood/40 hover:text-bean'
                 }`}
               >
                 {tab.label}
@@ -352,7 +357,8 @@ export default function AdminDashboardPage() {
       {/* Branch breakdown */}
       {allowedAnalytics && overview && !loadingAnalytics && (
         <section className="mt-10">
-          <h2 className="text-base font-bold text-bean">Branch breakdown</h2>
+          <p className="editorial-label">Institutional view</p>
+          <h2 className="mt-1 text-3xl font-semibold text-bean">Branch breakdown</h2>
           <p className="mt-1 text-xs text-olive">
             Club, event, and registration activity grouped by master branch (e.g. B.Tech, M.Tech).
           </p>
@@ -362,7 +368,7 @@ export default function AdminDashboardPage() {
               <EmptyState title="No branches recorded" />
             </div>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-rose/30 shadow-sm">
+            <div className="editorial-table mt-4 overflow-x-auto border border-rose/30 shadow-sm">
               <table className="w-full text-left text-sm">
                 <thead className="bg-vanilla/20 text-xs uppercase tracking-wider text-olive">
                   <tr>
@@ -391,7 +397,8 @@ export default function AdminDashboardPage() {
       {/* Audit trail — Administrator only */}
       {allowedAudit && (
         <section className="mt-10">
-          <h2 className="text-base font-bold text-bean">Recent audit activity</h2>
+          <p className="editorial-label">The record</p>
+          <h2 className="mt-1 text-3xl font-semibold text-bean">Recent audit activity</h2>
           <p className="mt-1 text-xs text-olive">
             Immutable record of sensitive operations — the last 25 entries.
           </p>
@@ -406,7 +413,7 @@ export default function AdminDashboardPage() {
             {auditLogs.map((log) => (
               <div
                 key={log.audit_log_id}
-                className="rounded-xl border border-rose/30 bg-white px-4 py-3 shadow-sm"
+                className="editorial-card rounded-none px-4 py-3 shadow-none"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">

@@ -25,13 +25,13 @@ export default function ClubsPage() {
         subtitle="Browse every chartered student organisation at the university, along with its program, faculty manager and current membership."
       />
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
+      <div className="editorial-toolbar">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search clubs by name or description…"
-          className="w-full rounded-xl border border-rose/30 bg-white min-h-11 px-4 py-2.5 text-sm text-bean placeholder-rose outline-none transition focus:border-blood focus:ring-2 focus:ring-blood/20 sm:max-w-sm"
+          className="editorial-field w-full sm:max-w-sm"
         />
         <div className="sm:w-96">
           <ProgramSelector
@@ -53,56 +53,62 @@ export default function ClubsPage() {
           hint="Try a different search term, or head to “Apply for club” to propose a new one."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <>
+        <div className="mb-3 flex items-center justify-between border-b border-rose/30 pb-2">
+          <p className="editorial-label">The club directory</p>
+          <p className="text-xs text-olive">{clubs.length} {clubs.length === 1 ? 'organisation' : 'organisations'}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {clubs.map((club) => (
             <article
               key={club.club_id}
-              className="flex flex-col justify-between rounded-2xl border border-rose/30 bg-white p-5 transition hover:border-blood/40"
+              className="editorial-card flex min-h-64 flex-col justify-between p-5 sm:p-6"
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-bold text-bean">{club.name}</h2>
+                <div className="mb-4 flex items-center justify-between gap-3 border-b border-rose/25 pb-2">
+                  <span className="editorial-label">Campus organisation</span>
                   <StatusBadge status={club.status} />
                 </div>
 
-                <p className="mt-1 text-xs font-medium text-blood">
+                <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
+
+                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blood">
                   {club.program_name ?? 'Unassigned program'}
                 </p>
 
-                <p className="mt-3 text-sm leading-relaxed text-olive">
+                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-olive">
                   {club.description?.trim() || 'No description has been provided for this club yet.'}
                 </p>
 
-                <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-rose/30 pt-4 text-xs">
+                <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-rose/25 pt-4 text-xs">
                   <div>
-                    <dt className="text-olive">Members</dt>
-                    <dd className="mt-0.5 text-base font-semibold text-bean">{club.member_count ?? 0}</dd>
+                    <dt className="editorial-label">Members</dt>
+                    <dd className="mt-1 font-serif text-2xl font-semibold text-bean">{club.member_count ?? 0}</dd>
                   </div>
                   <div>
-                    <dt className="text-olive">Chartered</dt>
-                    <dd className="mt-0.5 font-medium text-bean">{formatDate(club.created_at)}</dd>
+                    <dt className="editorial-label">Chartered</dt>
+                    <dd className="mt-2 font-medium text-bean">{formatDate(club.created_at)}</dd>
                   </div>
                 </dl>
 
                 <p className="mt-3 text-xs text-olive">
-                  Managed by <span className="font-medium text-bean">{club.manager_name ?? '—'}</span>
+                  Edited by <span className="font-semibold text-bean">{club.manager_name ?? '—'}</span>
                 </p>
               </div>
 
-              <div className="mt-5 border-t border-rose/20 pt-4 flex items-center justify-between">
-                <span className="text-[11px] text-olive uppercase tracking-wider font-medium">
-                  {club.status}
-                </span>
+              <div className="mt-5 flex items-center justify-between border-t border-rose/25 pt-4">
+                <span className="text-[10px] font-bold uppercase tracking-[.16em] text-olive">Club record</span>
                 <Link
                   to={`/joinclub?club_id=${club.club_id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose/30 bg-vanilla/20 px-3 py-1.5 text-xs font-semibold text-bean transition hover:border-blood/40 hover:bg-blood hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood cursor-pointer"
+                  className="inline-flex min-h-10 items-center gap-2 border border-blood px-3 py-2 text-xs font-bold uppercase tracking-wide text-blood transition hover:bg-blood hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood"
                 >
-                  Join club <span aria-hidden="true">→</span>
+                  Join the club <span aria-hidden="true">↗</span>
                 </Link>
               </div>
             </article>
           ))}
         </div>
+        </>
       )}
     </div>
   )

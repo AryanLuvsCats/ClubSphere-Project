@@ -73,27 +73,27 @@ export default function Layout() {
   }
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood ${
+    `flex min-h-11 w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm font-medium transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood ${
       isActive
         ? 'bg-blood text-white shadow-lg shadow-blood/20'
         : 'text-olive hover:bg-vanilla/40 hover:text-bean'
     }`
 
   const brand = (
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-vanilla p-[1px] shadow-sm">
-        <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white text-sm font-black text-blood">
+      <div className="flex items-center gap-2.5">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-rose/35 bg-vanilla/60 p-[1px]">
+        <div className="flex h-full w-full items-center justify-center bg-white font-serif text-sm font-black text-blood">
           CS
         </div>
       </div>
-      <span className="text-lg font-bold text-blood">ClubSphere</span>
+      <span className="font-serif text-xl font-bold tracking-tight text-bean">ClubSphere</span>
     </div>
   )
 
   return (
-    <div className="flex min-h-dvh flex-col bg-white text-bean lg:flex-row">
+    <div className="workspace-shell flex min-h-dvh flex-col text-bean lg:flex-row">
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-rose/30 bg-white/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-rose/30 bg-white/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-2">
           <button
             ref={menuButtonRef}
@@ -131,11 +131,11 @@ export default function Layout() {
         ref={sidebarRef}
         aria-label="Primary navigation"
         aria-modal={menuOpen ? 'true' : undefined}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-rose/30 bg-white backdrop-blur transition-[transform,visibility] duration-300 ease-out lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-64 lg:max-w-none lg:translate-x-0 lg:visible ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-rose/30 bg-[#fffdf8]/95 backdrop-blur-xl transition-[transform,visibility] duration-300 ease-out lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-64 lg:max-w-none lg:translate-x-0 lg:visible ${
           menuOpen ? 'visible translate-x-0' : 'invisible -translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center justify-between border-b border-rose/30 px-5 pt-[env(safe-area-inset-top)]">
+        <div className="flex h-16 items-center justify-between border-b-2 border-bean/80 px-5 pt-[env(safe-area-inset-top)]">
           {brand}
           <button
             ref={closeButtonRef}
@@ -208,8 +208,8 @@ export default function Layout() {
 
       {/* Routed page content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 overflow-x-hidden">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+        <main className="workspace-main flex-1 overflow-x-hidden">
+          <div className="workspace-content mx-auto w-full px-4 pb-10 sm:px-6 lg:px-10">
             <Outlet />
           </div>
         </main>

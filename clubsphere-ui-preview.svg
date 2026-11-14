@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1260" viewBox="0 0 1600 1260">
+  <defs>
+    <linearGradient id="paper" x2="1" y2="1"><stop stop-color="#fffdf9"/><stop offset="1" stop-color="#f8f3e8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#310e10" flood-opacity=".08"/></filter>
+    <style>
+      .serif{font-family:Georgia,'Times New Roman',serif;fill:#310e10}.sans{font-family:Arial,sans-serif;fill:#45462a}
+      .tiny{font:700 9px Arial,sans-serif;letter-spacing:1.5px;fill:#74070e}.muted{fill:#947268}
+      .title{font:600 34px Georgia,'Times New Roman',serif;letter-spacing:-1px;fill:#310e10}
+      .cardtitle{font:600 19px Georgia,'Times New Roman',serif;fill:#310e10}
+      .body{font:11px Arial,sans-serif;fill:#45462a}.small{font:9px Arial,sans-serif;fill:#45462a}
+      .rule{stroke:#d8c9be;stroke-width:1}.card{fill:#fffefa;stroke:#dfd2c8;stroke-width:1}
+      .btn{fill:#74070e}.btntext{font:700 9px Arial,sans-serif;letter-spacing:.7px;fill:white}
+      .nav{font:10px Arial,sans-serif;fill:#45462a}.metric{font:600 27px Georgia,serif;fill:#74070e}
+    </style>
+    <g id="navshell">
+      <rect width="770" height="532" rx="4" fill="url(#paper)"/>
+      <rect width="150" height="532" fill="#fffdf8" stroke="#dfd2c8"/>
+      <rect x="18" y="18" width="26" height="26" fill="#f4e3b2" stroke="#947268"/>
+      <text x="25" y="36" class="serif" font-size="11" font-weight="bold" fill="#74070e">CS</text>
+      <text x="52" y="35" class="serif" font-size="17" font-weight="bold">ClubSphere</text>
+      <line x1="0" y1="58" x2="150" y2="58" stroke="#310e10" stroke-width="1.5"/>
+      <text x="21" y="91" class="nav">⌂  Overview</text>
+      <rect x="11" y="104" width="128" height="31" fill="#74070e"/>
+      <text x="21" y="124" font-family="Arial" font-size="10" font-weight="bold" fill="white">▦  Clubs</text>
+      <text x="21" y="158" class="nav">◷  Events</text>
+      <text x="21" y="190" class="nav">＋  Join club</text>
+      <line x1="17" y1="214" x2="133" y2="214" class="rule"/>
+      <text x="21" y="241" class="nav">♢  Admin Dashboard</text>
+      <line x1="0" y1="460" x2="150" y2="460" class="rule"/>
+      <circle cx="32" cy="486" r="13" fill="#f4e3b2"/><text x="26" y="490" class="small" font-weight="bold">VS</text>
+      <text x="53" y="483" class="small" font-weight="bold">Vanshika</text>
+      <text x="53" y="497" class="small muted">Student member</text>
+      <rect x="17" y="509" width="116" height="17" fill="#fff" stroke="#dfd2c8"/><text x="53" y="521" class="small">Sign out</text>
+    </g>
+  </defs>
+  <rect width="1600" height="1200" fill="#eee7db"/>
+  <text x="54" y="42" class="tiny">CLUBSPHERE  /  PRODUCT PREVIEW</text>
+  <text x="54" y="79" class="serif" font-size="31" font-weight="bold">A campus, in good company.</text>
+  <text x="54" y="103" class="body" font-size="13">Four views from the student and campus administration experience</text>
+
+  <!-- Clubs -->
+  <g transform="translate(25 130)"><use href="#navshell"/>
+    <text x="176" y="30" class="tiny">CLUBSPHERE  /  CAMPUS LIFE</text><text x="176" y="70" class="title">Clubs</text>
+    <text x="176" y="94" class="body">Discover the communities shaping campus life.</text><line x1="176" y1="108" x2="745" y2="108" class="rule"/>
+    <rect x="176" y="123" width="382" height="37" fill="#ffffff" stroke="#d8c9be"/><text x="190" y="146" class="small muted">⌕   Search clubs by name or description…</text>
+    <rect x="565" y="123" width="180" height="37" fill="#ffffff" stroke="#d8c9be"/><text x="577" y="146" class="small">All programs     ▾</text>
+    <text x="176" y="184" class="tiny">THE CLUB DIRECTORY</text><text x="690" y="184" class="small muted">12 organisations</text>
+    <g filter="url(#shadow)">
+      <rect x="176" y="196" width="178" height="280" class="card"/><rect x="365" y="196" width="178" height="280" class="card"/><rect x="554" y="196" width="191" height="280" class="card"/>
+    </g>
+    <g><text x="190" y="218" class="tiny">CAMPUS ORGANISATION</text><text x="190" y="247" class="cardtitle">The Literary</text><text x="190" y="268" class="cardtitle">Society</text><text x="190" y="292" class="tiny">ARTS &amp; HUMANITIES</text><text x="190" y="318" class="body">A home for readers, writers,</text><text x="190" y="334" class="body">and curious minds.</text><line x1="190" y1="360" x2="340" y2="360" class="rule"/><text x="190" y="380" class="tiny">MEMBERS</text><text x="190" y="414" class="metric">48</text><text x="271" y="380" class="tiny">CHARTERED</text><text x="271" y="402" class="small">12 Sep 2025</text><line x1="190" y1="434" x2="340" y2="434" class="rule"/><text x="190" y="459" class="tiny">CLUB RECORD</text><rect x="263" y="443" width="77" height="25" class="btn"/><text x="273" y="459" class="btntext">JOIN CLUB ↗</text></g>
+    <g><text x="379" y="218" class="tiny">CAMPUS ORGANISATION</text><text x="379" y="247" class="cardtitle">Design &amp;</text><text x="379" y="268" class="cardtitle">Innovation</text><text x="379" y="292" class="tiny">ENGINEERING</text><text x="379" y="318" class="body">Making useful things through</text><text x="379" y="334" class="body">experiments and teamwork.</text><line x1="379" y1="360" x2="529" y2="360" class="rule"/><text x="379" y="380" class="tiny">MEMBERS</text><text x="379" y="414" class="metric">36</text><text x="460" y="380" class="tiny">CHARTERED</text><text x="460" y="402" class="small">28 Aug 2025</text><line x1="379" y1="434" x2="529" y2="434" class="rule"/><text x="379" y="459" class="tiny">CLUB RECORD</text><rect x="452" y="443" width="77" height="25" class="btn"/><text x="462" y="459" class="btntext">JOIN CLUB ↗</text></g>
+    <g><text x="568" y="218" class="tiny">CAMPUS ORGANISATION</text><text x="568" y="247" class="cardtitle">Green Campus</text><text x="568" y="268" class="cardtitle">Collective</text><text x="568" y="292" class="tiny">SUSTAINABILITY</text><text x="568" y="318" class="body">Small actions, shared effort,</text><text x="568" y="334" class="body">a greener university.</text><line x1="568" y1="360" x2="731" y2="360" class="rule"/><text x="568" y="380" class="tiny">MEMBERS</text><text x="568" y="414" class="metric">62</text><text x="649" y="380" class="tiny">CHARTERED</text><text x="649" y="402" class="small">06 Oct 2025</text><line x1="568" y1="434" x2="731" y2="434" class="rule"/><text x="568" y="459" class="tiny">CLUB RECORD</text><rect x="654" y="443" width="77" height="25" class="btn"/><text x="664" y="459" class="btntext">JOIN CLUB ↗</text></g>
+  </g>
+
+  <!-- Events -->
+  <g transform="translate(805 130)"><use href="#navshell"/>
+    <text x="176" y="30" class="tiny">CLUBSPHERE  /  CAMPUS LIFE</text><text x="176" y="70" class="title">Events</text>
+    <text x="176" y="94" class="body">Gatherings, talks, and happenings across campus.</text><line x1="176" y1="108" x2="745" y2="108" class="rule"/>
+    <rect x="176" y="123" width="382" height="37" fill="#fff" stroke="#d8c9be"/><text x="190" y="146" class="small muted">⌕   Search events by title or venue…</text><rect x="565" y="123" width="180" height="37" fill="#fff" stroke="#d8c9be"/><text x="577" y="146" class="small">Published     ▾</text>
+    <text x="176" y="184" class="tiny">THE CAMPUS CALENDAR</text><text x="692" y="184" class="small muted">8 listings</text>
+    <g filter="url(#shadow)"><rect x="176" y="196" width="276" height="137" class="card"/><rect x="465" y="196" width="280" height="137" class="card"/><rect x="176" y="347" width="276" height="137" class="card"/><rect x="465" y="347" width="280" height="137" class="card"/></g>
+    <g><text x="190" y="216" class="tiny">EVENT NOTICE  /  NO. 014</text><text x="190" y="244" class="cardtitle">Open Mic Evening</text><text x="190" y="262" class="tiny">HOSTED BY THE LITERARY SOCIETY</text><text x="190" y="286" class="small">VENUE   Student Commons</text><text x="190" y="302" class="small">STARTS  18 Nov · 6:00 PM</text><text x="190" y="318" class="small">REGISTER BY  17 Nov</text><line x1="374" y1="229" x2="374" y2="315" class="rule"/><text x="390" y="244" class="tiny">SEATS LEFT</text><text x="390" y="276" class="metric">12</text><rect x="390" y="291" width="51" height="24" class="btn"/><text x="401" y="307" class="btntext">REGISTER</text></g>
+    <g><text x="479" y="216" class="tiny">EVENT NOTICE  /  NO. 021</text><text x="479" y="244" class="cardtitle">Ideas in Motion</text><text x="479" y="262" class="tiny">HOSTED BY DESIGN &amp; INNOVATION</text><text x="479" y="286" class="small">VENUE   Innovation Lab</text><text x="479" y="302" class="small">STARTS  20 Nov · 2:30 PM</text><text x="479" y="318" class="small">REGISTER BY  19 Nov</text><line x1="666" y1="229" x2="666" y2="315" class="rule"/><text x="682" y="244" class="tiny">SEATS LEFT</text><text x="682" y="276" class="metric">28</text><rect x="682" y="291" width="51" height="24" class="btn"/><text x="693" y="307" class="btntext">REGISTER</text></g>
+    <g><text x="190" y="367" class="tiny">EVENT NOTICE  /  NO. 026</text><text x="190" y="395" class="cardtitle">Campus Clean-up</text><text x="190" y="413" class="tiny">HOSTED BY GREEN CAMPUS COLLECTIVE</text><text x="190" y="437" class="small">VENUE   North Gate</text><text x="190" y="453" class="small">STARTS  22 Nov · 9:00 AM</text><text x="190" y="469" class="small">REGISTER BY  21 Nov</text><line x1="374" y1="380" x2="374" y2="466" class="rule"/><text x="390" y="395" class="tiny">SEATS LEFT</text><text x="390" y="427" class="metric">34</text><rect x="390" y="442" width="51" height="24" class="btn"/><text x="401" y="458" class="btntext">REGISTER</text></g>
+    <g><text x="479" y="367" class="tiny">EVENT NOTICE  /  NO. 031</text><text x="479" y="395" class="cardtitle">Stories on Stage</text><text x="479" y="413" class="tiny">HOSTED BY PERFORMING ARTS CLUB</text><text x="479" y="437" class="small">VENUE   Main Auditorium</text><text x="479" y="453" class="small">STARTS  24 Nov · 5:30 PM</text><text x="479" y="469" class="small">REGISTER BY  23 Nov</text><line x1="666" y1="380" x2="666" y2="466" class="rule"/><text x="682" y="395" class="tiny">SEATS LEFT</text><text x="682" y="427" class="metric">06</text><rect x="682" y="442" width="51" height="24" class="btn"/><text x="693" y="458" class="btntext">REGISTER</text></g>
+  </g>
+
+  <!-- Join club -->
+  <g transform="translate(25 680)"><use href="#navshell"/>
+    <text x="176" y="30" class="tiny">CLUBSPHERE  /  CAMPUS LIFE</text><text x="176" y="70" class="title">Join a club</text>
+    <text x="176" y="94" class="body">Find your people. Send a request to join a campus community.</text><line x1="176" y1="108" x2="745" y2="108" class="rule"/>
+    <rect x="176" y="123" width="330" height="37" fill="#fff" stroke="#d8c9be"/><text x="190" y="146" class="small muted">⌕   Search active clubs…</text><text x="525" y="146" class="small muted">Choose a community to send a request.</text>
+    <text x="176" y="184" class="tiny">OPEN MEMBERSHIP REQUESTS</text><text x="685" y="184" class="small muted">6 active clubs</text>
+    <g filter="url(#shadow)"><rect x="176" y="196" width="278" height="133" class="card"/><rect x="467" y="196" width="278" height="133" class="card"/><rect x="176" y="343" width="278" height="133" class="card"/><rect x="467" y="343" width="278" height="133" class="card"/></g>
+    <g><text x="190" y="217" class="tiny">MEMBERSHIP INVITATION</text><line x1="190" y1="226" x2="440" y2="226" class="rule"/><text x="190" y="254" class="cardtitle">The Literary Society</text><text x="190" y="273" class="tiny">ARTS &amp; HUMANITIES</text><text x="190" y="295" class="small">48 members  /  Convened by A. Mehta</text><rect x="190" y="305" width="125" height="18" class="btn"/><text x="199" y="318" class="btntext">REQUEST TO JOIN</text></g>
+    <g><text x="481" y="217" class="tiny">MEMBERSHIP INVITATION</text><line x1="481" y1="226" x2="731" y2="226" class="rule"/><text x="481" y="254" class="cardtitle">Design &amp; Innovation</text><text x="481" y="273" class="tiny">ENGINEERING</text><text x="481" y="295" class="small">36 members  /  Convened by R. Kapoor</text><rect x="481" y="305" width="125" height="18" class="btn"/><text x="490" y="318" class="btntext">REQUEST TO JOIN</text></g>
+    <g><text x="190" y="364" class="tiny">MEMBERSHIP INVITATION</text><line x1="190" y1="373" x2="440" y2="373" class="rule"/><text x="190" y="401" class="cardtitle">Green Campus Collective</text><text x="190" y="420" class="tiny">SUSTAINABILITY</text><text x="190" y="442" class="small">62 members  /  Convened by N. Roy</text><rect x="190" y="452" width="125" height="18" class="btn"/><text x="199" y="465" class="btntext">REQUEST TO JOIN</text></g>
+    <g><text x="481" y="364" class="tiny">MEMBERSHIP INVITATION</text><line x1="481" y1="373" x2="731" y2="373" class="rule"/><text x="481" y="401" class="cardtitle">Robotics Circle</text><text x="481" y="420" class="tiny">COMPUTING</text><text x="481" y="442" class="small">29 members  /  Convened by P. Sharma</text><rect x="481" y="452" width="125" height="18" class="btn"/><text x="490" y="465" class="btntext">REQUEST TO JOIN</text></g>
+  </g>
+
+  <!-- Admin -->
+  <g transform="translate(805 680)"><use href="#navshell"/>
+    <text x="176" y="30" class="tiny">CLUBSPHERE  /  GOVERNANCE</text><text x="176" y="70" class="title">Admin dashboard</text>
+    <text x="176" y="94" class="body">Institution-wide governance and analytics, at a glance.</text><line x1="176" y1="108" x2="745" y2="108" class="rule"/>
+    <text x="176" y="136" class="tiny">CAMPUS AT A GLANCE</text>
+    <g filter="url(#shadow)"><rect x="176" y="149" width="132" height="84" class="card"/><rect x="319" y="149" width="132" height="84" class="card"/><rect x="462" y="149" width="132" height="84" class="card"/><rect x="605" y="149" width="140" height="84" class="card"/></g>
+    <text x="190" y="171" class="tiny">ACTIVE CLUBS</text><text x="190" y="211" class="metric">18</text><text x="333" y="171" class="tiny">PENDING PROPOSALS</text><text x="333" y="211" class="metric">04</text><text x="476" y="171" class="tiny">PUBLISHED EVENTS</text><text x="476" y="211" class="metric">26</text><text x="619" y="171" class="tiny">STUDENTS</text><text x="619" y="211" class="metric">842</text>
+    <text x="176" y="261" class="tiny">THE REVIEW DESK</text><text x="176" y="289" class="serif" font-size="22" font-weight="bold">Club applications</text>
+    <rect x="176" y="301" width="81" height="23" class="btn"/><text x="189" y="316" class="btntext">SUBMITTED  4</text><rect x="264" y="301" width="81" height="23" fill="#fff" stroke="#d8c9be"/><text x="278" y="316" class="small">IN REVIEW</text>
+    <g filter="url(#shadow)"><rect x="176" y="336" width="569" height="138" class="card"/></g>
+    <text x="192" y="359" class="tiny">CHARTER PROPOSAL  /  014</text><text x="192" y="389" class="cardtitle">Photography &amp; Visual Stories</text><text x="192" y="410" class="small">By Mira Shah  ·  Media &amp; Design  ·  Submitted 12 Nov</text><text x="192" y="436" class="body">A student community for documentary photography, visual storytelling,</text><text x="192" y="452" class="body">and creative collaboration across campus.</text>
+    <rect x="567" y="439" width="73" height="24" fill="#45462a"/><text x="581" y="455" class="btntext">APPROVE</text><rect x="646" y="439" width="83" height="24" fill="#fff" stroke="#d8c9be"/><text x="653" y="455" class="small">REQUEST EDITS</text>
+    <text x="176" y="503" class="small muted">Proposal review • Branch analytics • Audit activity</text>
+  </g>
+
+  <text x="54" y="1234" class="small muted">ClubSphere · editorial UI concept preview · Fraunces-style serif / Public Sans-style sans · cream, burgundy, olive and muted rose</text>
+</svg>
+
