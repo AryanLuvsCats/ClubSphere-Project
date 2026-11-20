@@ -7,19 +7,7 @@ from app.core.security import bearer_scheme, decode_token
 from app.models.models import User, Club, RoleNameEnum
 
 
-def normalize_role(role_name: str) -> str:
-    """Normalize role string to canonical enum value."""
-    cleaned = role_name.strip().lower().replace(" ", "").replace("_", "")
-    mapping = {
-        "student": RoleNameEnum.STUDENT.value,
-        "clubmanager": RoleNameEnum.CLUB_MANAGER.value,
-        "manager": RoleNameEnum.CLUB_MANAGER.value,
-        "faculty": RoleNameEnum.FACULTY.value,
-        "hod": RoleNameEnum.HOD.value,
-        "admin": RoleNameEnum.ADMINISTRATOR.value,
-        "administrator": RoleNameEnum.ADMINISTRATOR.value,
-    }
-    return mapping.get(cleaned, role_name)
+from app.core.authorization import normalize_role
 
 
 def get_current_user(

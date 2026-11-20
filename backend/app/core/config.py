@@ -1,5 +1,5 @@
 import secrets
-from typing import List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,7 +18,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Later files take precedence. Workspace-root files are the fallback;
         # backend-local files override them so backend/.env stays authoritative.
-        env_file=("../.env", "../.env.local", ".env", ".env.local"),
+        env_file=(
+            "../.env",
+            "../.env.local",
+            "../.env.production",
+            ".env",
+            ".env.local",
+            ".env.production",
+        ),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -32,14 +39,54 @@ class Settings(BaseSettings):
     DOCS_ENABLED: Optional[bool] = None
 
     # Database
+    # Neon Postgres is the primary supported data store for application data.
     # No default on purpose: a missing DATABASE_URL must fail loudly instead of
     # silently falling back to a local SQLite file that diverges from Neon.
     DATABASE_URL: str = ""
     DATABASE_URL_UNPOOLED: str = ""
     NEON_BRANCH: str = ""
+
+    # Connection Pool Settings
+    DB_POOL_SIZE: int = Field(default=10, ge=1, le=100)
+    DB_MAX_OVERFLOW: int = Field(default=20, ge=0, le=100)
+    DB_POOL_TIMEOUT: int = Field(default=30, ge=1, le=300)
+    DB_POOL_RECYCLE: int = Field(default=300, ge=60, le=3600)
+    DB_CONNECT_TIMEOUT: int = Field(default=10, ge=1, le=60)
+
+    # Optional / fallback database connection fields
+    AZURE_POSTGRES_HOST: Optional[str] = None
+    AZURE_POSTGRES_PORT: int = 5432
+    AZURE_POSTGRES_USER: Optional[str] = None
+    AZURE_POSTGRES_PASSWORD: Optional[str] = None
+    AZURE_POSTGRES_DB: Optional[str] = None
+    AZURE_POSTGRES_SSLMODE: str = "require"
+    AZURE_POSTGRES_SSLROOTCERT: Optional[str] = None
+
     # Development convenience only. Production must run `alembic upgrade head`
     # and set AUTO_CREATE_SCHEMA=false so schema changes are tracked as migrations.
     AUTO_CREATE_SCHEMA: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def assemble_database_url_from_components(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            db_url = (data.get("DATABASE_URL") or "").strip()
+            if not db_url and data.get("AZURE_POSTGRES_HOST"):
+                import urllib.parse
+                user = urllib.parse.quote_plus(str(data.get("AZURE_POSTGRES_USER") or ""))
+                password = urllib.parse.quote_plus(str(data.get("AZURE_POSTGRES_PASSWORD") or ""))
+                host = data.get("AZURE_POSTGRES_HOST")
+                port = data.get("AZURE_POSTGRES_PORT", 5432)
+                dbname = data.get("AZURE_POSTGRES_DB", "clubsphere")
+                sslmode = data.get("AZURE_POSTGRES_SSLMODE", "require")
+                
+                auth_part = f"{user}:{password}@" if user or password else ""
+                assembled_url = f"postgresql+psycopg://{auth_part}{host}:{port}/{dbname}?sslmode={sslmode}"
+                rootcert = data.get("AZURE_POSTGRES_SSLROOTCERT")
+                if rootcert:
+                    assembled_url += f"&sslrootcert={urllib.parse.quote_plus(str(rootcert))}"
+                data["DATABASE_URL"] = assembled_url
+        return data
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod
@@ -47,16 +94,29 @@ class Settings(BaseSettings):
         url = (v or "").strip()
         if not url:
             raise ValueError(
-                "DATABASE_URL is not set. Create backend/.env (copy .env.example) and set it to "
-                "your Neon connection string, or to sqlite:///./clubsphere_dev.db for local-only work."
+                "DATABASE_URL is not set. Set it to your Neon connection string "
+                "(postgresql://...) in backend/.env."
             )
         # SQLAlchemy no longer understands the legacy postgres:// scheme.
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         if not url.startswith(("sqlite://", "postgresql://", "postgresql+psycopg://")):
             raise ValueError(
-                "DATABASE_URL must use sqlite://, postgresql://, or postgresql+psycopg://"
+                "DATABASE_URL must use postgresql:// or postgresql+psycopg:// "
+                "(sqlite:///:memory: is allowed for tests only)"
             )
+        # Policy: users must never be persisted to a local SQLite file. Only an
+        # in-memory database is permitted, and only because the test suite needs
+        # it (it is discarded when the process exits, so nothing is stored).
+        if url.startswith("sqlite"):
+            memory_urls = {"sqlite://", "sqlite:///:memory:"}
+            if url not in memory_urls and not url.startswith("sqlite:///file::memory:"):
+                raise ValueError(
+                    "Local file-based SQLite is disabled: users must be stored only in "
+                    "the remote (Neon) database. Set DATABASE_URL to your postgresql:// "
+                    "connection string. In-memory SQLite (sqlite:///:memory:) remains "
+                    "available to automated tests."
+                )
         return url
 
     # JWT Authentication
@@ -124,6 +184,7 @@ class Settings(BaseSettings):
     # Azure Blob Storage & File Uploads
     AZURE_STORAGE_CONNECTION_STRING: str = ""
     AZURE_STORAGE_CONTAINER_NAME: str = "clubsphere-uploads"
+    AZURE_STORAGE_USE_EMULATOR: bool = True
     LOCAL_UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
     ALLOWED_MIME_TYPES: Union[str, List[str]] = [

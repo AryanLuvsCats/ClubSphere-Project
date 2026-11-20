@@ -154,7 +154,12 @@ def store_blob_or_local(
     """
     blob_name = f"{file_id}_{sanitized_name}"
 
-    if settings.AZURE_STORAGE_CONNECTION_STRING:
+    use_azure = bool(
+        settings.AZURE_STORAGE_CONNECTION_STRING
+        and not getattr(settings, "AZURE_STORAGE_USE_EMULATOR", False)
+    )
+
+    if use_azure:
         try:
             from azure.storage.blob import BlobServiceClient
 
@@ -170,8 +175,13 @@ def store_blob_or_local(
             blob_client.upload_blob(file_bytes, overwrite=False)
             return blob_client.url
         except Exception:
-            # Fall back to local storage when Azure is unreachable or
-            # misconfigured. Do not log the exception: it may contain secrets.
+            # In production / staging, do not silently write to ephemeral container storage
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Cloud storage service unavailable",
+                )
+            # Fall back to local storage in development
             pass
 
     upload_dir = os.path.abspath(settings.LOCAL_UPLOAD_DIR)

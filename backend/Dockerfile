@@ -21,12 +21,20 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Expose port for Azure App Service / Container Apps
+# Create non-root system user and ensure directory ownership
+RUN useradd -m -u 1000 -s /bin/bash appuser && \
+    mkdir -p /app/uploads && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port for container networking
 EXPOSE 8000
 
 # Health check probe
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start Uvicorn production server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start Uvicorn production server with proxy headers enabled
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

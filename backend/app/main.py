@@ -11,7 +11,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.v1.router import api_v1_router
 from app.core.academic_seed import seed_academic_data
 from app.core.config import settings
-from app.core.database import Base, check_db_health, engine, get_db
+from app.core.database import Base, check_db_health, close_db_connections, engine, get_db
 from app.core.middleware import (
     BodySizeLimitMiddleware,
     HTTPSRedirectMiddleware,
@@ -75,7 +75,8 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
     seed_baseline_data()
     yield
-    # Shutdown logic if needed
+    # Shutdown logic: cleanly dispose the database connection pool
+    close_db_connections()
 
 
 def create_application() -> FastAPI:

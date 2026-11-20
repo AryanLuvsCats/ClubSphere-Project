@@ -1,9 +1,14 @@
 # Python & test cache
 __pycache__/
 .pytest_cache/
+*.py[cod]
 
-# Environment configuration
+# Environment configuration & secrets (Prevent real credentials from leaking into Git)
 .env
+.env.*
+!.env.example
+!.env.production.example
+!backend/.env.example
 
 # SQLite local database
 *.db
@@ -15,7 +20,7 @@ uploads/
 node_modules/
 dist/
 
-
+# Neon CLI local state & override files
 .neon
 .env.local
 

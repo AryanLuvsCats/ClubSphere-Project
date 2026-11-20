@@ -1,0 +1,127 @@
+# ==============================================================================
+# ClubSphere — Render Blueprint
+# ==============================================================================
+# Deploy: connect this repo in Render Dashboard -> "New Blueprint Instance".
+#
+# Only non-secret values live here. Secrets (DATABASE_URL, DATABASE_URL_UNPOOLED,
+# AZURE_STORAGE_CONNECTION_STRING) are entered in the Render Dashboard when the
+# Blueprint is created, or via environment groups. JWT_SECRET_KEY is generated
+# by Render on first sync and preserved on later syncs.
+#
+# The frontend proxies /api and /health to the backend's public Render URL.
+# This avoids relying on private-network inbound access (free web services can
+# send private requests but cannot receive them).
+# ==============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend: FastAPI + Uvicorn, runs Alembic migrations before starting.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: clubsphere-backend
+    runtime: docker
+    region: oregon
+    plan: 0.5c-512mb
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: '/bin/sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"'
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: '8000'
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: ClubSphere
+      - key: API_V1_PREFIX
+        value: /api/v1
+      - key: DEBUG
+        value: 'false'
+      - key: AUTO_CREATE_SCHEMA
+        value: 'false'
+
+      # Neon connection strings are secrets: supplied in the Render Dashboard.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: NEON_BRANCH
+        value: production
+
+      # Render generates a random 256-bit value and keeps it across deploys.
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '15'
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: '7'
+
+      # Update these to your real Render/custom domain names.
+      - key: CORS_ORIGINS
+        value: https://clubsphere-frontend.onrender.com
+      - key: ALLOWED_HOSTS
+        value: '*.onrender.com,clubsphere-backend'
+      - key: TRUSTED_PROXY_IPS
+        value: ''
+      # Render's edge terminates TLS and redirects HTTP -> HTTPS itself.
+      # Keeping this false avoids a redirect loop from inside the container.
+      - key: FORCE_HTTPS
+        value: 'false'
+      - key: COOKIE_SECURE
+        value: 'true'
+      - key: COOKIE_SAMESITE
+        value: strict
+      - key: HSTS_SECONDS
+        value: '31536000'
+
+      # Supply a real Azure Blob Storage connection string in the Dashboard to
+      # make uploads durable. Without it, uploads use the container's local disk
+      # and are lost on redeploy.
+      - key: AZURE_STORAGE_CONNECTION_STRING
+        sync: false
+      - key: AZURE_STORAGE_CONTAINER_NAME
+        value: clubsphere-uploads
+      - key: AZURE_STORAGE_USE_EMULATOR
+        value: 'false'
+      - key: LOCAL_UPLOAD_DIR
+        value: /app/uploads
+      - key: MAX_UPLOAD_SIZE_BYTES
+        value: '10485760'
+      - key: ALLOWED_MIME_TYPES
+        value: image/jpeg,image/png,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+      - key: RATE_LIMIT_LOGIN_ATTEMPTS
+        value: '5'
+      - key: RATE_LIMIT_REGISTER_ATTEMPTS
+        value: '5'
+      - key: RATE_LIMIT_REFRESH_ATTEMPTS
+        value: '30'
+      - key: RATE_LIMIT_WINDOW_SECONDS
+        value: '60'
+      - key: RATE_LIMIT_BLOCK_SECONDS
+        value: '300'
+
+  # ---------------------------------------------------------------------------
+  # Frontend: multi-stage Vite build served by Nginx with an /api reverse proxy.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: clubsphere-frontend
+    runtime: docker
+    region: oregon
+    plan: 0.5c-512mb
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: '80'
+      # Nginx template renders: proxy_pass https://<backend host>/api/;
+      - key: BACKEND_SCHEME
+        value: https
+      - key: BACKEND_HOST
+        fromService:
+          name: clubsphere-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_HOSTNAME

@@ -1,16 +1,26 @@
+# ==============================================================================
+# ClubSphere Local Development Stack (Docker Compose)
+# ==============================================================================
+# NOTICE: This file is STRICTLY FOR LOCAL DEVELOPMENT ONLY.
+# Do NOT use this file in production or staging environments.
+# For production deployments, use:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# ==============================================================================
+
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: clubsphere-backend
+    container_name: clubsphere-dev-backend
     ports:
       - "8000:8000"
     environment:
       - ENVIRONMENT=development
       - DEBUG=true
-      # Uses the shell/root-.env value when set; otherwise local SQLite.
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./clubsphere_dev.db}
+      # Required: the app refuses to start without a remote database URL, so
+      # user data can never be written to a local SQLite file.
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set to the Neon connection string}
       - JWT_SECRET_KEY=dev_secret_key_clubsphere_super_secure_32_chars!
       - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
     volumes:

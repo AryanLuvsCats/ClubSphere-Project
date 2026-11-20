@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.audit import record_audit_log
 from app.core.authorization import branch_id_for_user, is_hod
-from app.core.database import get_db
+from app.core.database import get_db, escape_like
 from app.core.rate_limit import utc_now_naive
 from app.core.rbac import require_roles, RoleNameEnum
 from app.models.models import (
@@ -275,8 +275,11 @@ def list_users(
     if role_name:
         query = query.filter(Role.RoleName == role_name)
     if search:
-        term = f"%{search.strip()}%"
-        query = query.filter((User.Email.ilike(term)) | (User.FullName.ilike(term)))
+        term = f"%{escape_like(search)}%"
+        query = query.filter(
+            (User.Email.ilike(term, escape="\\"))
+            | (User.FullName.ilike(term, escape="\\"))
+        )
 
     total = query.count()
     users = query.order_by(User.UserId.asc()).offset((page - 1) * page_size).limit(page_size).all()

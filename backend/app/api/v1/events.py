@@ -11,7 +11,7 @@ from app.core.authorization import (
     can_view_event_outcome,
     is_admin,
 )
-from app.core.database import get_db
+from app.core.database import get_db, escape_like
 from app.core.rbac import (
     check_club_ownership,
     get_current_active_user,
@@ -100,8 +100,7 @@ def list_events(
     if to_date:
         query = query.filter(Event.EventDate <= to_date)
     if search:
-        escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        search_fmt = f"%{escaped}%"
+        search_fmt = f"%{escape_like(search)}%"
         query = query.filter(
             Event.Title.ilike(search_fmt, escape="\\")
             | Event.VenueText.ilike(search_fmt, escape="\\")
@@ -110,13 +109,24 @@ def list_events(
     total = query.count()
     events = query.order_by(Event.EventDate.asc()).offset((page - 1) * page_size).limit(page_size).all()
 
+    # Batch query confirmed registration counts to eliminate N+1 round trips
+    event_ids = [ev.EventId for ev in events]
+    reg_counts = {}
+    if event_ids:
+        counts = (
+            db.query(EventRegistration.EventId, func.count(EventRegistration.RegistrationId))
+            .filter(
+                EventRegistration.EventId.in_(event_ids),
+                EventRegistration.Status == "confirmed",
+            )
+            .group_by(EventRegistration.EventId)
+            .all()
+        )
+        reg_counts = dict(counts)
+
     items = []
     for ev in events:
-        confirmed_count = db.query(func.count(EventRegistration.RegistrationId)).filter(
-            EventRegistration.EventId == ev.EventId,
-            EventRegistration.Status == "confirmed"
-        ).scalar() or 0
-
+        confirmed_count = reg_counts.get(ev.EventId, 0)
         seats_left = max(0, ev.Capacity - confirmed_count)
 
         items.append(

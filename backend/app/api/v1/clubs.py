@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.authorization import can_view_club, is_admin, role_name
-from app.core.database import get_db
+from app.core.database import get_db, escape_like
 from app.core.rbac import (
     check_club_ownership,
     get_current_active_user,
@@ -70,8 +70,7 @@ def list_clubs(
         query = query.filter(Club.Status == "active")
 
     if search:
-        escaped = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        search_fmt = f"%{escaped}%"
+        search_fmt = f"%{escape_like(search)}%"
         query = query.filter(
             Club.Name.ilike(search_fmt, escape="\\")
             | Club.Description.ilike(search_fmt, escape="\\")
@@ -80,14 +79,24 @@ def list_clubs(
     total = query.count()
     clubs = query.order_by(Club.Name.asc()).offset((page - 1) * page_size).limit(page_size).all()
 
+    # Batch query membership counts to eliminate N+1 round trips
+    club_ids = [c.ClubId for c in clubs]
+    counts_map = {}
+    if club_ids:
+        counts = (
+            db.query(ClubMembership.ClubId, func.count(ClubMembership.MembershipId))
+            .filter(
+                ClubMembership.ClubId.in_(club_ids),
+                ClubMembership.Status == "active",
+            )
+            .group_by(ClubMembership.ClubId)
+            .all()
+        )
+        counts_map = dict(counts)
+
     items = []
     for c in clubs:
-        member_cnt = (
-            db.query(func.count(ClubMembership.MembershipId))
-            .filter(ClubMembership.ClubId == c.ClubId, ClubMembership.Status == "active")
-            .scalar()
-            or 0
-        )
+        member_cnt = counts_map.get(c.ClubId, 0)
 
         items.append(
             ClubResponse(

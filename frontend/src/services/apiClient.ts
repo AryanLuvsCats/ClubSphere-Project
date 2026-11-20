@@ -1,6 +1,7 @@
 import type { TokenResponse } from '../domain/types'
 
-const API_BASE = '/api/v1'
+const rawBase = import.meta.env.VITE_API_BASE_URL as string | undefined
+const API_BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api/v1'
 
 const PROFILE_KEY = 'clubsphere_profile'
 

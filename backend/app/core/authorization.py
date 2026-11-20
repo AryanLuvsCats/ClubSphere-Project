@@ -20,10 +20,25 @@ PUBLIC_CLUB_STATUSES = {"active"}
 PUBLIC_EVENT_STATUSES = {"published", "completed"}
 
 
+def normalize_role(role_val: str) -> str:
+    """Normalize role string to canonical enum value."""
+    cleaned = role_val.strip().lower().replace(" ", "").replace("_", "")
+    mapping = {
+        "student": RoleNameEnum.STUDENT.value,
+        "clubmanager": RoleNameEnum.CLUB_MANAGER.value,
+        "manager": RoleNameEnum.CLUB_MANAGER.value,
+        "faculty": RoleNameEnum.FACULTY.value,
+        "hod": RoleNameEnum.HOD.value,
+        "admin": RoleNameEnum.ADMINISTRATOR.value,
+        "administrator": RoleNameEnum.ADMINISTRATOR.value,
+    }
+    return mapping.get(cleaned, role_val)
+
+
 def role_name(user: Optional[User]) -> str:
     if not user or not user.role:
         return ""
-    return user.role.RoleName
+    return normalize_role(user.role.RoleName)
 
 
 def is_admin(user: Optional[User]) -> bool:

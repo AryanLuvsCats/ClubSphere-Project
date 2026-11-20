@@ -1,0 +1,86 @@
+name: Deployment Readiness Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security-check:
+    name: Secrets & Git Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure no sensitive .env files are tracked
+        run: |
+          echo "Checking for committed secret or environment files..."
+          TRACKED_ENV_FILES=$(git ls-files | grep -E '(^|/)\.env($|\..*)' | grep -v '\.example$' || true)
+          if [ -n "$TRACKED_ENV_FILES" ]; then
+            echo "❌ CRITICAL SECURITY ERROR: The following .env file(s) are tracked in Git:"
+            echo "$TRACKED_ENV_FILES"
+            echo "Untrack them immediately using: git rm --cached <file>"
+            exit 1
+          fi
+          echo "✅ No sensitive .env files found in git tree."
+
+  backend-check:
+    name: Backend Tests & Migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest test suite
+        env:
+          ENVIRONMENT: testing
+          DATABASE_URL: sqlite:///:memory:
+        run: |
+          python -m pytest
+
+      - name: Verify Alembic migrations (heads and SQL dry-run)
+        run: |
+          python -m alembic heads
+          python -m alembic upgrade head --sql
+
+  frontend-check:
+    name: Frontend Lint & Production Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run production build
+        run: npm run build
