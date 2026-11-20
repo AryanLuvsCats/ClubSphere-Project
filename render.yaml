@@ -24,7 +24,10 @@ services:
     plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: '/bin/sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"'
+    # Single executable token: Render wraps dockerCommand in a shell string, so
+    # inline && / quoted /bin/sh -c chains break with exit code 127.
+    # The image's start.sh runs migrations before Uvicorn.
+    dockerCommand: /app/start.sh
     healthCheckPath: /health
     envVars:
       - key: PORT

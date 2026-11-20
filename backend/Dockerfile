@@ -21,6 +21,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
+# Startup script runs Alembic migrations, then hands off to Uvicorn.
+# Keeping this in the image avoids relying on Render's dockerCommand quoting.
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Create non-root system user and ensure directory ownership
 RUN useradd -m -u 1000 -s /bin/bash appuser && \
     mkdir -p /app/uploads && \
@@ -36,5 +41,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start Uvicorn production server with proxy headers enabled
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+# Run migrations, then start Uvicorn production server with proxy headers enabled
+CMD ["/app/start.sh"]
