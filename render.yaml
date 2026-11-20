@@ -61,9 +61,10 @@ services:
       - key: REFRESH_TOKEN_EXPIRE_DAYS
         value: '7'
 
-      # Update these to your real Render/custom domain names.
+      # Live frontend URL. Render appended a suffix because the plain name was
+      # already taken: https://clubsphere-frontend-xi1m.onrender.com
       - key: CORS_ORIGINS
-        value: https://clubsphere-frontend.onrender.com
+        value: https://clubsphere-frontend-xi1m.onrender.com
       - key: ALLOWED_HOSTS
         value: '*.onrender.com,clubsphere-backend'
       - key: TRUSTED_PROXY_IPS
