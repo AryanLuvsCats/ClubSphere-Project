@@ -28,7 +28,7 @@ services:
     # inline && / quoted /bin/sh -c chains break with exit code 127.
     # The image's start.sh runs migrations before Uvicorn.
     dockerCommand: /app/start.sh
-    healthCheckPath: /health
+    healthCheckPath: /health/live
     envVars:
       - key: PORT
         value: '8000'

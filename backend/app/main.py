@@ -131,6 +131,11 @@ def create_application() -> FastAPI:
                 content={"detail": "Internal server error"},
             )
 
+    # Liveness check for container orchestrators (Render / Kubernetes)
+    @app.get("/health/live", tags=["Health"])
+    def liveness_check():
+        return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
+
     # Root health smoke check
     @app.get("/health", tags=["Health"])
     def root_health_check(db: Session = Depends(get_db)):

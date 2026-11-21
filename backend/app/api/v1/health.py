@@ -7,6 +7,12 @@ from app.core.config import settings
 router = APIRouter(tags=["Health & Smoke Verification"])
 
 
+@router.get("/health/live")
+def liveness_check():
+    """Liveness probe: verifies process is running without hitting database."""
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
 @router.get("/health")
 def health_check(response: Response, db: Session = Depends(get_db)):
     """Health and readiness probe for container orchestrators and smoke verification."""

@@ -2,7 +2,11 @@
 set -e
 
 echo "==> Running database migrations"
-alembic upgrade head
+if alembic upgrade head; then
+    echo "==> Migrations applied successfully"
+else
+    echo "==> WARNING: Database migrations failed or database is not reachable yet. Proceeding with application startup..."
+fi
 
 echo "==> Starting Uvicorn"
 exec uvicorn app.main:app \

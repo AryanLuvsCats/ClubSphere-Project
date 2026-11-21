@@ -36,7 +36,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # overrides them with its public backend URL.
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 ENV BACKEND_SCHEME=http \
-    BACKEND_HOST=backend:8000
+    BACKEND_HOST=backend:8000 \
+    NGINX_ENVSUBST_FILTER="BACKEND_SCHEME BACKEND_HOST"
 
 # Expose HTTP port
 EXPOSE 80

@@ -32,3 +32,4 @@ dist/
 .agents/
 skills-lock.json
 neon.ts
+.playwright-mcp/

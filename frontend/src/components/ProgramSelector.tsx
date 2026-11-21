@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { Branch, Paginated } from '../lib/types'
+import { FALLBACK_BRANCHES } from '../data/fallbackBranches'
 
 /**
  * A cascading pair of dropdowns: first pick the master branch (e.g. "B.Tech"),
@@ -20,17 +21,20 @@ export default function ProgramSelector({
   onProgramChange: (value: string) => void
   required?: boolean
 }) {
-  const [branches, setBranches] = useState<Branch[]>([])
+  const [branches, setBranches] = useState<Branch[]>(FALLBACK_BRANCHES)
 
   useEffect(() => {
     let cancelled = false
     api
       .get<Paginated<Branch>>('/branches')
       .then((res) => {
-        if (!cancelled) setBranches(res.items)
+        if (!cancelled && res.items && res.items.length > 0) {
+          setBranches(res.items)
+        }
       })
       .catch(() => {
-        // The dropdowns are optional filters; fail silently if the API is unreachable.
+        // Fallback static academic data is already populated, so the dropdowns
+        // remain completely functional even if the backend is cold-starting or offline.
       })
     return () => {
       cancelled = true
