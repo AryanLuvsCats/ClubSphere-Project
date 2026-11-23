@@ -51,6 +51,10 @@ def seed_baseline_data():
                 summary["branches"],
                 summary["programs"],
             )
+
+        # Clean up any expired rate limiting throttle records
+        from app.core.rate_limit import cleanup_expired_throttle_rows
+        cleanup_expired_throttle_rows(db)
     except Exception:
         db.rollback()
         # Never log the exception text here: SQLAlchemy errors can include a

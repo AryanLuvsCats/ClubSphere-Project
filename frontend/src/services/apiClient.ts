@@ -74,6 +74,12 @@ async function readErrorMessage(res: Response): Promise<string> {
   } catch {
     // Response was not JSON
   }
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After')
+    return retryAfter
+      ? `Too many attempts. Please wait ${retryAfter} seconds before trying again.`
+      : 'Too many attempts. Please wait a minute before trying again.'
+  }
   return `Request failed with status ${res.status}`
 }
 

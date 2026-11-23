@@ -51,7 +51,7 @@ def _request_is_https(request: Request) -> bool:
         return True
     direct = request.client.host if request.client else ""
     trusted = {ip.strip() for ip in settings.TRUSTED_PROXY_IPS if ip.strip()}
-    if direct in trusted:
+    if "*" in trusted or direct in trusted:
         forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
         return forwarded_proto.lower() == "https"
     return False

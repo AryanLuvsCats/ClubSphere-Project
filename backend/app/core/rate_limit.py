@@ -34,6 +34,16 @@ def client_ip(request: Request) -> str:
     """
     direct = request.client.host if request.client else "unknown"
     trusted = {ip.strip() for ip in settings.TRUSTED_PROXY_IPS if ip.strip()}
+    if "*" in trusted:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+        if chain:
+            return chain[0]
+        real_ip = request.headers.get("x-real-ip", "").strip()
+        if real_ip:
+            return real_ip
+        return direct
+
     if not trusted or direct not in trusted:
         return direct
 
@@ -115,7 +125,7 @@ def check_rate_limit(
         retry_after = max(1, int((row.BlockedUntil - now).total_seconds()))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many attempts. Please try again later.",
+            detail=f"Too many attempts. Please try again in {retry_after} seconds.",
             headers={"Retry-After": str(retry_after)},
         )
 
@@ -144,7 +154,7 @@ def check_rate_limit(
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many attempts. Please try again later.",
+            detail=f"Too many attempts. Please try again in {block_seconds} seconds.",
             headers={"Retry-After": str(block_seconds)},
         )
 
@@ -184,14 +194,15 @@ def clear_failures(db: Session, scope: str, identifier: str) -> None:
     db.commit()
 
 
-def cleanup_expired_throttle_rows(db: Session, older_than_days: int = 7) -> int:
-    """Best-effort cleanup of old, unblocked counters."""
-    cutoff = utc_now_naive() - timedelta(days=older_than_days)
+def cleanup_expired_throttle_rows(db: Session, older_than_days: int = 1) -> int:
+    """Best-effort cleanup of old, expired counters and blocks."""
+    now = utc_now_naive()
+    cutoff = now - timedelta(days=older_than_days)
     deleted = (
         db.query(AuthThrottle)
         .filter(
-            AuthThrottle.UpdatedAt < cutoff,
-            (AuthThrottle.BlockedUntil.is_(None)) | (AuthThrottle.BlockedUntil < cutoff),
+            (AuthThrottle.UpdatedAt < cutoff)
+            | ((AuthThrottle.BlockedUntil.is_not(None)) & (AuthThrottle.BlockedUntil <= now))
         )
         .delete(synchronize_session=False)
     )
@@ -201,11 +212,12 @@ def cleanup_expired_throttle_rows(db: Session, older_than_days: int = 7) -> int:
 
 def enforce_login_limit(db: Session, request: Request, email: str) -> None:
     ip = client_ip(request)
+    ip_max_attempts = max(settings.RATE_LIMIT_LOGIN_ATTEMPTS * 5, 25)
     check_rate_limit(
         db,
         "login_ip",
         ip,
-        settings.RATE_LIMIT_LOGIN_ATTEMPTS,
+        ip_max_attempts,
         settings.RATE_LIMIT_WINDOW_SECONDS,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
@@ -221,11 +233,12 @@ def enforce_login_limit(db: Session, request: Request, email: str) -> None:
 
 def record_login_failure(db: Session, request: Request, email: str) -> None:
     ip = client_ip(request)
+    ip_max_attempts = max(settings.RATE_LIMIT_LOGIN_ATTEMPTS * 5, 25)
     record_failure(
         db,
         "login_ip",
         ip,
-        settings.RATE_LIMIT_LOGIN_ATTEMPTS,
+        ip_max_attempts,
         settings.RATE_LIMIT_WINDOW_SECONDS,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )

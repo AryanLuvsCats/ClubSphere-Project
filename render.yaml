@@ -69,7 +69,7 @@ services:
       - key: ALLOWED_HOSTS
         value: '*.onrender.com,clubsphere-backend'
       - key: TRUSTED_PROXY_IPS
-        value: ''
+        value: '*'
       # Render's edge terminates TLS and redirects HTTP -> HTTPS itself.
       # Keeping this false avoids a redirect loop from inside the container.
       - key: FORCE_HTTPS
@@ -98,15 +98,15 @@ services:
         value: image/jpeg,image/png,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document
 
       - key: RATE_LIMIT_LOGIN_ATTEMPTS
-        value: '5'
+        value: '10'
       - key: RATE_LIMIT_REGISTER_ATTEMPTS
-        value: '5'
+        value: '10'
       - key: RATE_LIMIT_REFRESH_ATTEMPTS
-        value: '30'
+        value: '60'
       - key: RATE_LIMIT_WINDOW_SECONDS
         value: '60'
       - key: RATE_LIMIT_BLOCK_SECONDS
-        value: '300'
+        value: '60'
 
   # ---------------------------------------------------------------------------
   # Frontend: multi-stage Vite build served by Nginx with an /api reverse proxy.
