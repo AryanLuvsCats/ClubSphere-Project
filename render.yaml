@@ -22,6 +22,7 @@ services:
     runtime: docker
     region: oregon
     plan: free
+    autoDeploy: true
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     # Single executable token: Render wraps dockerCommand in a shell string, so
@@ -115,6 +116,7 @@ services:
     runtime: docker
     region: oregon
     plan: free
+    autoDeploy: true
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     healthCheckPath: /

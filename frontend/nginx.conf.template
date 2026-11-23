@@ -66,9 +66,11 @@ server {
         try_files $uri =404;
     }
 
-    # SPA Client-Side Routing: fallback to index.html
+    # SPA Client-Side Routing: fallback to index.html with no-cache so updates are instant
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
     }
 
     # Security Headers
