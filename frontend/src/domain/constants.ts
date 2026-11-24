@@ -13,12 +13,12 @@ export const REVIEW_ROLES = new Set(['Administrator', 'HOD', 'Faculty'])
 export const AUDIT_ROLES = new Set(['Administrator'])
 
 export const NAV_ITEMS = [
-  { to: '/clubs', label: 'Clubs', icon: '🏛️' },
-  { to: '/events', label: 'Events', icon: '📅' },
-  { to: '/joinclub', label: 'Join club', icon: '🤝' },
-  { to: '/applyclub', label: 'Apply for club', icon: '📝' },
-  { to: '/manage-club', label: 'Manage club', icon: '👥', roles: ['Club Manager', 'Administrator'] },
-  { to: '/admin', label: 'Admin', icon: '🛡️', roles: ['Administrator'] },
+  { to: '/clubs', label: 'Clubs', icon: 'clubs' },
+  { to: '/events', label: 'Events', icon: 'events' },
+  { to: '/joinclub', label: 'Join club', icon: 'join' },
+  { to: '/applyclub', label: 'Apply for club', icon: 'apply' },
+  { to: '/manage-club', label: 'Manage club', icon: 'manage', roles: ['Club Manager', 'Administrator'] },
+  { to: '/admin', label: 'Admin', icon: 'admin', roles: ['Administrator'] },
 ] as const
 
 export const PROPOSAL_STATUS_TABS = [

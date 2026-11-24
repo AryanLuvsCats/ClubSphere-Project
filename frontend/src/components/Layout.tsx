@@ -6,6 +6,20 @@ import { usePendingMembershipCount } from '../hooks/usePendingMembershipCount'
 import NotificationsPopover from './NotificationsPopover'
 import GazetteFooter from './GazetteFooter'
 
+function SidebarIcon({ name }: { name: string }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 shrink-0" {...common}>
+      {name === 'clubs' && <><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6M3 9h18" /></>}
+      {name === 'events' && <><rect x="4" y="5" width="16" height="15" rx="1" /><path d="M8 3v4m8-4v4M4 9h16M8 13h2m4 0h2m-8 3h2m4 0h2" /></>}
+      {name === 'join' && <><circle cx="9" cy="8" r="3" /><path d="M3.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M18 8v6m-3-3h6" /></>}
+      {name === 'apply' && <><path d="M6 3h8l4 4v6M14 3v5h5M6 3v18h6" /><path d="m13 17 5-5 2 2-5 5-3 1z" /></>}
+      {name === 'manage' && <><circle cx="9" cy="8" r="3" /><path d="M3.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M17 7h4m-2-2v4m-2 5h4m-4 3h4" /></>}
+      {name === 'admin' && <><path d="M12 3 19 6v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6z" /><path d="m9 12 2 2 4-4" /></>}
+    </svg>
+  )
+}
+
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
   const pendingRequestCount = usePendingMembershipCount(user)
@@ -156,7 +170,7 @@ export default function Layout() {
               onClick={() => setMenuOpen(false)}
               className={linkClass}
             >
-              <span aria-hidden className="text-base">{item.icon}</span>
+              <SidebarIcon name={item.icon} />
               <span className="min-w-0 flex-1">{item.label}</span>
               {item.to === '/manage-club' && (
                 <span
