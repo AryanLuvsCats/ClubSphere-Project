@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
 import { formatDate } from '../lib/format'
@@ -9,6 +10,7 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const popoverRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   const updatePosition = useCallback(() => {
@@ -27,7 +29,8 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (!popoverRef.current?.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false)
       }
     }
@@ -94,8 +97,9 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
         )}
       </button>
 
-      {open && (
+      {open && createPortal((
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Notifications"
           style={{ top: position.top, left: position.left }}
@@ -160,7 +164,7 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
             )}
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }

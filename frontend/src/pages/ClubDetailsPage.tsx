@@ -6,6 +6,20 @@ import type { ClubDetail } from '../domain/types'
 import { ErrorNote, StatusBadge } from '../components/ui'
 import { formatDate } from '../lib/format'
 
+function DetailIcon({ kind }: { kind: 'vision' | 'people' | 'calendar' | 'award' | 'email' | 'phone' }) {
+  const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-blood" {...stroke}>
+      {kind === 'vision' && <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="m14 10 6-6M16 4h4v4" /></>}
+      {kind === 'people' && <><circle cx="9" cy="8" r="3" /><path d="M3.5 20v-1.5a5.5 5.5 0 0 1 11 0V20M16 5.5a3 3 0 0 1 0 5.8M17 14a5 5 0 0 1 3.5 4.5v1" /></>}
+      {kind === 'calendar' && <><rect x="4" y="5" width="16" height="15" rx="1" /><path d="M8 3v4m8-4v4M4 9h16M8 13h2m4 0h2m-8 3h2" /></>}
+      {kind === 'award' && <><circle cx="12" cy="9" r="6" /><path d="m8.5 14-1 7 4.5-2 4.5 2-1-7M10 9l1.3 1.3L14 7.5" /></>}
+      {kind === 'email' && <><rect x="3" y="5" width="18" height="14" rx="1" /><path d="m4 7 8 6 8-6" /></>}
+      {kind === 'phone' && <path d="M7 3H5a2 2 0 0 0-2 2c0 8.8 7.2 16 16 16a2 2 0 0 0 2-2v-2l-5-2-2 3a14 14 0 0 1-7-7l3-2z" />}
+    </svg>
+  )
+}
+
 export default function ClubDetailsPage() {
   const { clubId } = useParams<{ clubId: string }>()
   const navigate = useNavigate()
@@ -117,7 +131,7 @@ export default function ClubDetailsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10 pb-16">
+    <div className="club-profile-page mx-auto max-w-5xl pb-16">
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-olive pt-2">
         <Link to="/clubs" className="font-medium hover:text-blood transition">
@@ -176,7 +190,7 @@ export default function ClubDetailsPage() {
                 to={`/manage-club?club_id=${club.club_id}`}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-olive/30 bg-vanilla/50 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-bean transition hover:bg-olive hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
               >
-                Manage Club ⚙️
+              Manage Club
               </Link>
             )}
 
@@ -194,7 +208,7 @@ export default function ClubDetailsPage() {
                 disabled
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose/40 bg-vanilla px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-olive cursor-default shadow-sm"
               >
-                <span>⏳</span> Request Pending
+                Request Pending
               </button>
             ) : (
               <button
@@ -223,9 +237,9 @@ export default function ClubDetailsPage() {
       </header>
 
       {/* Section 1: Motives & Vision */}
-      <section aria-labelledby="motives-heading" className="editorial-card p-6 sm:p-8 bg-[#fffcf5]">
+      <section aria-labelledby="motives-heading" className="editorial-card p-5 sm:p-7 bg-[#fffcf5]">
         <div className="flex items-center gap-2.5 mb-3">
-          <span className="text-xl" aria-hidden="true">🎯</span>
+          <DetailIcon kind="vision" />
           <p id="motives-heading" className="editorial-label text-blood font-bold uppercase tracking-widest">
             Motives &amp; Strategic Vision
           </p>
@@ -240,10 +254,10 @@ export default function ClubDetailsPage() {
       </section>
 
       {/* Section 2: Core Leadership & Contact Directory */}
-      <section aria-labelledby="leadership-heading" className="space-y-4">
-        <div className="flex flex-col gap-1 border-b border-rose/30 pb-3">
+      <section aria-labelledby="leadership-heading" className="club-profile-section">
+        <div className="club-profile-section-heading">
           <div className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden="true">👥</span>
+            <DetailIcon kind="people" />
             <p id="leadership-heading" className="editorial-label text-blood font-bold uppercase tracking-widest">
               Core Leadership &amp; Directory
             </p>
@@ -254,11 +268,11 @@ export default function ClubDetailsPage() {
         </div>
 
         {club.core_members && club.core_members.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {club.core_members.map((member, idx) => (
               <article
                 key={`${member.email}-${idx}`}
-                className="editorial-card p-5 flex flex-col justify-between gap-4 transition hover:border-blood/30"
+                className="editorial-card flex min-h-44 flex-col justify-between gap-4 p-5 transition hover:border-blood/30"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -285,7 +299,7 @@ export default function ClubDetailsPage() {
                     className="flex items-center gap-2 text-olive hover:text-blood transition truncate"
                     title={`Send email to ${member.email}`}
                   >
-                    <span aria-hidden="true">✉</span>
+                    <DetailIcon kind="email" />
                     <span className="truncate">{member.email}</span>
                   </a>
                   {member.phone && (
@@ -294,7 +308,7 @@ export default function ClubDetailsPage() {
                       className="flex items-center gap-2 text-olive hover:text-blood transition truncate"
                       title={`Call ${member.phone}`}
                     >
-                      <span aria-hidden="true">📞</span>
+                      <DetailIcon kind="phone" />
                       <span className="truncate">{member.phone}</span>
                     </a>
                   )}
@@ -303,15 +317,15 @@ export default function ClubDetailsPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-olive py-4">No core members listed for this club yet.</p>
+          <div className="club-profile-empty">No core members listed for this club yet.</div>
         )}
       </section>
 
       {/* Section 3: Recent Events by the Club */}
-      <section aria-labelledby="events-heading" className="space-y-4">
-        <div className="flex flex-col gap-1 border-b border-rose/30 pb-3">
+      <section aria-labelledby="events-heading" className="club-profile-section">
+        <div className="club-profile-section-heading">
           <div className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden="true">📅</span>
+            <DetailIcon kind="calendar" />
             <p id="events-heading" className="editorial-label text-blood font-bold uppercase tracking-widest">
               Club Activities &amp; Timeline
             </p>
@@ -322,11 +336,11 @@ export default function ClubDetailsPage() {
         </div>
 
         {club.recent_events && club.recent_events.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {club.recent_events.map((event) => (
               <article
                 key={event.event_id}
-                className="editorial-card p-5 flex flex-col justify-between gap-4 transition hover:border-blood/30"
+                className="editorial-card flex min-h-48 flex-col justify-between gap-4 p-5 transition hover:border-blood/30"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -358,17 +372,17 @@ export default function ClubDetailsPage() {
             ))}
           </div>
         ) : (
-          <div className="editorial-card p-8 text-center text-sm text-olive">
+          <div className="club-profile-empty">
             No events currently scheduled for {club.name}. Check back soon!
           </div>
         )}
       </section>
 
       {/* Section 4: Past Event Achievements */}
-      <section aria-labelledby="achievements-heading" className="space-y-4">
-        <div className="flex flex-col gap-1 border-b border-rose/30 pb-3">
+      <section aria-labelledby="achievements-heading" className="club-profile-section">
+        <div className="club-profile-section-heading">
           <div className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden="true">🏆</span>
+            <DetailIcon kind="award" />
             <p id="achievements-heading" className="editorial-label text-blood font-bold uppercase tracking-widest">
               Milestones &amp; Honors
             </p>
@@ -402,7 +416,7 @@ export default function ClubDetailsPage() {
                 {ach.award_or_highlight && (
                   <div className="shrink-0 self-start md:self-center">
                     <span className="inline-flex items-center gap-1.5 rounded-xl border border-olive/30 bg-olive/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-olive shadow-sm">
-                      <span>🎖️</span> {ach.award_or_highlight}
+                      {ach.award_or_highlight}
                     </span>
                   </div>
                 )}
@@ -410,7 +424,7 @@ export default function ClubDetailsPage() {
             ))}
           </div>
         ) : (
-          <div className="editorial-card p-8 text-center text-sm text-olive">
+          <div className="club-profile-empty">
             No past achievements recorded yet for this club.
           </div>
         )}

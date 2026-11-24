@@ -481,6 +481,11 @@ code {
 .ed-brief-event-details dd { margin: 2px 0 0; font-size: 12px; }
 .toast-stack { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; width: min(390px, calc(100vw - 36px)); flex-direction: column; gap: 8px; }
 .notification-panel { max-height: calc(100dvh - 2rem); }
+.club-profile-page { display: flex; flex-direction: column; gap: clamp(24px, 3vw, 34px); }
+.club-profile-section { display: flex; flex-direction: column; gap: 12px; }
+.club-profile-section-heading { display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--ink-rule); padding-bottom: 12px; }
+.club-profile-section-heading h2 { margin: 0; }
+.club-profile-empty { display: flex; min-height: 88px; align-items: center; border: 1px solid var(--ink-rule); background: rgba(255,252,245,.62); padding: 18px 20px; color: var(--ed-muted); font: 15px/1.5 Georgia,serif; }
 .toast-message { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border: 1px solid var(--ink-black); background: var(--paper-light); padding: 12px 14px; color: var(--ink-black); box-shadow: 3px 3px 0 var(--ink-black); font-size: 13px; animation: toast-in .18s ease-out; }
 .toast-success { border-left: 4px solid #53613B; }
 .toast-error { border-left: 4px solid var(--press-burgundy); }
