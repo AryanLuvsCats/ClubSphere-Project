@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.authorization import can_view_club, is_admin, role_name
 from app.core.database import get_db, escape_like
@@ -26,6 +26,10 @@ from app.models.models import (
     Event,
 )
 from app.schemas.club import (
+    ClubAchievement,
+    ClubCoreMember,
+    ClubRecentEvent,
+    ClubDetailResponse,
     ClubCreateRequest,
     ClubUpdateRequest,
     ClubResponse,
@@ -159,7 +163,106 @@ def get_pending_request_count(
     return PendingRequestCountResponse(count=query.scalar() or 0)
 
 
-@router.get("/{club_id}", response_model=ClubResponse)
+def _build_club_detail_response(club: Club, db: Session, member_cnt: int) -> ClubDetailResponse:
+    recent_events_rows = (
+        db.query(Event)
+        .options(joinedload(Event.outcome))
+        .filter(Event.ClubId == club.ClubId)
+        .order_by(Event.EventDate.desc())
+        .limit(10)
+        .all()
+    )
+    recent_events = [
+        ClubRecentEvent(
+            event_id=ev.EventId,
+            title=ev.Title,
+            event_date=ev.EventDate,
+            venue_text=ev.VenueText,
+            description=ev.outcome.Summary if ev.outcome else None,
+            status=ev.Status,
+        )
+        for ev in recent_events_rows
+    ]
+
+    core_members = []
+    if club.LeadershipContacts and isinstance(club.LeadershipContacts, list) and len(club.LeadershipContacts) > 0:
+        for c in club.LeadershipContacts:
+            if isinstance(c, dict) and "name" in c and "role" in c:
+                core_members.append(
+                    ClubCoreMember(
+                        role=c.get("role", "Lead"),
+                        name=c.get("name", ""),
+                        email=c.get("email", ""),
+                        phone=c.get("phone"),
+                    )
+                )
+
+    if not core_members:
+        leader_memberships = (
+            db.query(ClubMembership)
+            .filter(
+                ClubMembership.ClubId == club.ClubId,
+                ClubMembership.Status == "active",
+                ClubMembership.Role.in_(
+                    ("President", "Vice President", "Media Head", "Tech Head", "Lead", "Coordinator")
+                ),
+            )
+            .all()
+        )
+        for lm in leader_memberships:
+            if lm.user:
+                core_members.append(
+                    ClubCoreMember(
+                        role=lm.Role,
+                        name=lm.user.FullName,
+                        email=lm.user.Email,
+                        phone=None,
+                    )
+                )
+        if not core_members and club.manager:
+            core_members.append(
+                ClubCoreMember(
+                    role="Club Manager",
+                    name=club.manager.FullName,
+                    email=club.manager.Email,
+                    phone=None,
+                )
+            )
+
+    past_achievements = []
+    if club.PastAchievements and isinstance(club.PastAchievements, list):
+        for ach in club.PastAchievements:
+            if isinstance(ach, dict) and "title" in ach and "description" in ach:
+                past_achievements.append(
+                    ClubAchievement(
+                        title=ach["title"],
+                        date=ach.get("date"),
+                        description=ach["description"],
+                        award_or_highlight=ach.get("award_or_highlight"),
+                    )
+                )
+
+    return ClubDetailResponse(
+        club_id=club.ClubId,
+        name=club.Name,
+        program_id=club.ProgramId,
+        program_name=club.program.FullName if club.program else None,
+        branch_id=club.program.BranchId if club.program else None,
+        branch_name=club.program.branch.Name if club.program else None,
+        manager_user_id=club.ManagerUserId,
+        manager_name=club.manager.FullName if club.manager else None,
+        description=club.Description,
+        status=club.Status,
+        created_at=club.CreatedAt,
+        member_count=member_cnt,
+        motives=club.Motives,
+        past_achievements=past_achievements,
+        recent_events=recent_events,
+        core_members=core_members,
+    )
+
+
+@router.get("/{club_id}", response_model=ClubDetailResponse)
 def get_club_details(
     club_id: int,
     current_user: Optional[User] = Depends(get_optional_current_user),
@@ -180,20 +283,7 @@ def get_club_details(
         or 0
     )
 
-    return ClubResponse(
-        club_id=club.ClubId,
-        name=club.Name,
-        program_id=club.ProgramId,
-        program_name=club.program.FullName if club.program else None,
-        branch_id=club.program.BranchId if club.program else None,
-        branch_name=club.program.branch.Name if club.program else None,
-        manager_user_id=club.ManagerUserId,
-        manager_name=club.manager.FullName if club.manager else None,
-        description=club.Description,
-        status=club.Status,
-        created_at=club.CreatedAt,
-        member_count=member_cnt,
-    )
+    return _build_club_detail_response(club, db, member_cnt)
 
 
 @router.get("/{club_id}/public-profile", response_model=ClubPublicProfileResponse)
@@ -353,7 +443,7 @@ def create_club_admin_override(
     )
 
 
-@router.put("/{club_id}", response_model=ClubResponse)
+@router.put("/{club_id}", response_model=ClubDetailResponse)
 def update_club(
     club_id: int,
     payload: ClubUpdateRequest,
@@ -377,6 +467,15 @@ def update_club(
 
     if payload.description is not None:
         club.Description = payload.description
+
+    if payload.motives is not None:
+        club.Motives = payload.motives
+
+    if payload.past_achievements is not None:
+        club.PastAchievements = [a.model_dump() for a in payload.past_achievements]
+
+    if payload.leadership_contacts is not None:
+        club.LeadershipContacts = [c.model_dump() for c in payload.leadership_contacts]
 
     if payload.status:
         # Only Administrator can suspend or reactivate clubs
@@ -422,20 +521,7 @@ def update_club(
         or 0
     )
 
-    return ClubResponse(
-        club_id=club.ClubId,
-        name=club.Name,
-        program_id=club.ProgramId,
-        program_name=club.program.FullName if club.program else None,
-        branch_id=club.program.BranchId if club.program else None,
-        branch_name=club.program.branch.Name if club.program else None,
-        manager_user_id=club.ManagerUserId,
-        manager_name=club.manager.FullName if club.manager else None,
-        description=club.Description,
-        status=club.Status,
-        created_at=club.CreatedAt,
-        member_count=member_cnt,
-    )
+    return _build_club_detail_response(club, db, member_cnt)
 
 
 @router.post("/{club_id}/join", response_model=MembershipJoinResponse, status_code=status.HTTP_201_CREATED)

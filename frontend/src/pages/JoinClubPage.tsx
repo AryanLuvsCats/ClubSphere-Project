@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useJoinClub } from '../hooks/useJoinClub'
 import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 
@@ -96,24 +96,32 @@ export default function JoinClubPage() {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void requestToJoin(club)}
-                    disabled={busyClubId === club.club_id || isAlreadyInClub}
-                    className={`editorial-button min-h-10 shrink-0 px-4 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed ${
-                      isAlreadyInClub || busyClubId === club.club_id
-                        ? 'border border-olive/30 bg-olive/10 text-olive'
-                        : 'bg-blood text-white hover:bg-bean cursor-pointer'
-                    }`}
-                  >
-                    {busyClubId === club.club_id
-                      ? 'Sending…'
-                      : isActiveMember
-                        ? '✓ Active member'
-                        : isRequested
-                          ? '✓ Request sent'
-                        : 'Request to join'}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <Link
+                      to={`/clubs/${club.club_id}`}
+                      className="editorial-button min-h-10 shrink-0 border border-bean/30 px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-bean transition hover:border-blood hover:text-blood hover:bg-vanilla/40"
+                    >
+                      Club Details
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void requestToJoin(club)}
+                      disabled={busyClubId === club.club_id || isAlreadyInClub}
+                      className={`editorial-button min-h-10 shrink-0 px-4 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed ${
+                        isAlreadyInClub || busyClubId === club.club_id
+                          ? 'border border-olive/30 bg-olive/10 text-olive'
+                          : 'bg-blood text-white hover:bg-bean cursor-pointer'
+                      }`}
+                    >
+                      {busyClubId === club.club_id
+                        ? 'Sending…'
+                        : isActiveMember
+                          ? '✓ Active member'
+                          : isRequested
+                            ? '✓ Request sent'
+                          : 'Request to join'}
+                    </button>
+                  </div>
                 </div>
 
                 {state && (

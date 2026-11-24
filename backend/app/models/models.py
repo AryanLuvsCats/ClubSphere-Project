@@ -11,6 +11,7 @@ from sqlalchemy import (
     UniqueConstraint,
     CheckConstraint,
     Index,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -113,6 +114,9 @@ class Club(Base):
     ProgramId = Column(Integer, ForeignKey("Programs.ProgramId"), nullable=False)
     ManagerUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
     Description = Column(Text, nullable=True)
+    Motives = Column(Text, nullable=True)
+    PastAchievements = Column(JSON, nullable=True, default=list)
+    LeadershipContacts = Column(JSON, nullable=True, default=list)
     Status = Column(String(20), nullable=False, default="pending")
     CreatedAt = Column(DateTime, nullable=False, default=utc_now)
 

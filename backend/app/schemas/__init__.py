@@ -7,6 +7,10 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.club import (
+    ClubAchievement,
+    ClubCoreMember,
+    ClubRecentEvent,
+    ClubDetailResponse,
     ClubCreateRequest,
     ClubUpdateRequest,
     ClubResponse,

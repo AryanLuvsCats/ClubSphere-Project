@@ -53,6 +53,45 @@ export interface Club {
   member_count?: number
 }
 
+export interface ClubAchievement {
+  title: string
+  date?: string | null
+  description: string
+  award_or_highlight?: string | null
+}
+
+export interface ClubCoreMember {
+  role: string
+  name: string
+  email: string
+  phone?: string | null
+}
+
+export interface ClubRecentEvent {
+  event_id: number
+  title: string
+  event_date: string
+  venue_text?: string | null
+  description?: string | null
+  status: string
+}
+
+export interface ClubDetail extends Club {
+  motives?: string | null
+  past_achievements: ClubAchievement[]
+  recent_events: ClubRecentEvent[]
+  core_members: ClubCoreMember[]
+}
+
+export interface ClubUpdatePayload {
+  name?: string
+  description?: string
+  motives?: string
+  past_achievements?: ClubAchievement[]
+  leadership_contacts?: ClubCoreMember[]
+  status?: string
+}
+
 export interface MyMembershipStatus {
   club_id: number
   status: 'requested' | 'active' | 'removed' | string

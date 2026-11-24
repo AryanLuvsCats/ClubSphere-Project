@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import ClubsPage from './pages/ClubsPage'
+import ClubDetailsPage from './pages/ClubDetailsPage'
 import EventsPage from './pages/EventsPage'
 import JoinClubPage from './pages/JoinClubPage'
 import ApplyClubPage from './pages/ApplyClubPage'
@@ -99,6 +100,7 @@ function AppRoutes() {
         }
       >
         <Route path="clubs" element={<ClubsPage />} />
+        <Route path="clubs/:clubId" element={<ClubDetailsPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="joinclub" element={<JoinClubPage />} />
         <Route path="applyclub" element={<ApplyClubPage />} />

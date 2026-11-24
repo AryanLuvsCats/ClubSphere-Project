@@ -41,7 +41,8 @@ export default function ProgramSelector({
     }
   }, [])
 
-  const selectedBranch = branches.find((b) => String(b.branch_id) === branchId)
+  const availableBranches = branches && branches.length > 0 ? branches : FALLBACK_BRANCHES
+  const selectedBranch = availableBranches.find((b) => String(b.branch_id) === String(branchId))
   const programs = selectedBranch?.programs ?? []
 
   const selectClass =
@@ -64,7 +65,7 @@ export default function ProgramSelector({
           className={selectClass}
         >
           <option value="">Select a master program…</option>
-          {branches.map((b) => (
+          {availableBranches.map((b) => (
             <option key={b.branch_id} value={b.branch_id}>
               {b.name}
             </option>

@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useClubs } from '../hooks/useClubs'
-import { clubService } from '../services/clubService'
-import type { ClubPublicProfile } from '../domain/types'
 import { formatDate } from '../lib/format'
 import ProgramSelector from '../components/ProgramSelector'
 import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
@@ -22,40 +19,6 @@ export default function ClubsPage() {
     error,
     membershipStatusByClub,
   } = useClubs()
-  const [detailClub, setDetailClub] = useState<ClubPublicProfile | null>(null)
-  const [detailClubId, setDetailClubId] = useState<number | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [detailError, setDetailError] = useState<string | null>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
-
-  async function openClubDetails(clubId: number) {
-    setDetailClubId(clubId)
-    setDetailClub(null)
-    setDetailError(null)
-    setDetailLoading(true)
-    try {
-      setDetailClub(await clubService.getClubPublicProfile(clubId))
-    } catch (err) {
-      setDetailError(err instanceof Error ? err.message : 'Could not load club details.')
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (detailClubId === null) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    closeButtonRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDetailClubId(null)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [detailClubId, detailLoading])
 
   return (
     <div>
@@ -110,9 +73,9 @@ export default function ClubsPage() {
                   <StatusBadge status={club.status} />
                 </div>
 
-                <button type="button" onClick={() => void openClubDetails(club.club_id)} className="block text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood">
-                  <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
-                </button>
+                <Link to={`/clubs/${club.club_id}`} className="block text-left transition hover:text-blood focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood">
+                  <h2 className="text-2xl font-semibold leading-tight text-bean hover:text-blood">{club.name}</h2>
+                </Link>
                 <p className="gazette-club-description mt-3 line-clamp-3 text-sm leading-relaxed text-olive">
                   {club.description?.trim() || 'No description has been provided for this club yet.'}
                 </p>
@@ -143,7 +106,12 @@ export default function ClubsPage() {
                       Manage ⚙️
                     </Link>
                   )}
-                  <button type="button" onClick={() => void openClubDetails(club.club_id)} className="inline-flex min-h-10 items-center border border-bean/30 px-3 py-2 text-xs font-bold uppercase tracking-wide text-bean hover:border-blood hover:text-blood">Details</button>
+                  <Link
+                    to={`/clubs/${club.club_id}`}
+                    className="editorial-button inline-flex min-h-10 items-center border border-bean/30 px-3 py-2 text-xs font-bold uppercase tracking-wide text-bean transition hover:border-blood hover:text-blood hover:bg-vanilla/40"
+                  >
+                    Club Details
+                  </Link>
                   {membershipStatusByClub[club.club_id] === 'active' ? (
                     <button type="button" disabled className="editorial-button inline-flex min-h-10 items-center gap-2 border border-olive/30 bg-olive/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-olive disabled:cursor-not-allowed">✓ Active member</button>
                   ) : ['requested', 'pending'].includes(membershipStatusByClub[club.club_id] ?? '') ? (
@@ -157,32 +125,6 @@ export default function ClubsPage() {
           ))}
         </div>
         </>
-      )}
-
-      {detailClubId !== null && (
-        <div className="club-detail-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailClubId(null) }}>
-          <section className="club-detail-panel" role="dialog" aria-modal="true" aria-labelledby="club-detail-title">
-            <button ref={closeButtonRef} type="button" className="club-detail-close" onClick={() => setDetailClubId(null)} aria-label="Close club details">×</button>
-            {detailLoading ? <SkeletonGrid count={1} compact /> : detailError ? <ErrorNote message={detailError} /> : detailClub && (
-              <>
-                <p className="editorial-label">Club charter · {detailClub.program_name || 'Campus society'}</p>
-                <h2 id="club-detail-title" className="club-detail-title">{detailClub.name}</h2>
-                <p className="club-detail-description">{detailClub.description || 'No description has been added to this club profile yet.'}</p>
-                <div className="club-detail-stats"><strong>{detailClub.member_count ?? 0}</strong><span>active members</span></div>
-                <div className="club-detail-columns">
-                  <section><h3>Faculty convener</h3><p>{detailClub.faculty_convener || 'No faculty convener is listed on this club profile.'}</p></section>
-                  <section><h3>Leadership roster</h3>
-                    {detailClub.leadership_roster.length ? <ul>{detailClub.leadership_roster.map((leader) => <li key={`${leader.full_name}-${leader.role}`}><span>{leader.full_name}</span><b>{leader.role}</b></li>)}</ul> : <p>{detailClub.manager_name ? `${detailClub.manager_name} · Club Manager` : 'No leadership roster is listed yet.'}</p>}
-                  </section>
-                </div>
-                <section className="club-detail-events"><h3>Upcoming club events</h3>
-                  {detailClub.upcoming_events.length ? detailClub.upcoming_events.map((event) => <article key={event.event_id}><strong>{event.title}</strong><span>{new Date(event.event_date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span><span>{event.venue_text || 'Venue to be announced'}</span></article>) : <p>No upcoming published events are listed.</p>}
-                </section>
-                <div className="mt-6 flex gap-3"><Link className="editorial-button bg-blood px-4 py-2 text-xs font-bold uppercase text-white" to={`/joinclub?club_id=${detailClub.club_id}`}>Membership desk ↗</Link><Link className="editorial-button border border-bean/30 px-4 py-2 text-xs font-bold uppercase text-bean" to="/events">All campus events</Link></div>
-              </>
-            )}
-          </section>
-        </div>
       )}
     </div>
   )

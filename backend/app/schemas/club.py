@@ -14,9 +14,35 @@ class ClubCreateRequest(StrictRequestModel):
     status: str = Field(default="active", pattern="^(pending|active|suspended)$")
 
 
+class ClubAchievement(StrictRequestModel):
+    title: str = Field(..., min_length=2, max_length=200)
+    date: Optional[str] = Field(default=None, max_length=50)
+    description: str = Field(..., max_length=2000)
+    award_or_highlight: Optional[str] = Field(default=None, max_length=200)
+
+
+class ClubCoreMember(StrictRequestModel):
+    role: str = Field(..., min_length=2, max_length=100)
+    name: str = Field(..., min_length=2, max_length=150)
+    email: str = Field(..., min_length=3, max_length=150)
+    phone: Optional[str] = Field(default=None, max_length=50)
+
+
+class ClubRecentEvent(StrictRequestModel):
+    event_id: int
+    title: str
+    event_date: datetime
+    venue_text: Optional[str] = None
+    description: Optional[str] = None
+    status: str
+
+
 class ClubUpdateRequest(StrictRequestModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=150)
     description: Optional[str] = Field(default=None, max_length=5000)
+    motives: Optional[str] = Field(default=None, max_length=10000)
+    past_achievements: Optional[List[ClubAchievement]] = None
+    leadership_contacts: Optional[List[ClubCoreMember]] = None
     status: Optional[str] = Field(default=None, pattern="^(pending|active|suspended)$")
     manager_user_id: Optional[int] = Field(default=None, gt=0)
 
@@ -34,6 +60,13 @@ class ClubResponse(StrictRequestModel):
     status: str
     created_at: datetime
     member_count: Optional[int] = 0
+
+
+class ClubDetailResponse(ClubResponse):
+    motives: Optional[str] = None
+    past_achievements: List[ClubAchievement] = []
+    recent_events: List[ClubRecentEvent] = []
+    core_members: List[ClubCoreMember] = []
 
 
 class ClubListResponse(StrictRequestModel):

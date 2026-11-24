@@ -164,7 +164,7 @@ class Settings(BaseSettings):
 
     # Host / proxy / HTTPS
     ALLOWED_HOSTS: Union[str, List[str]] = ["*"]
-    TRUSTED_PROXY_IPS: Union[str, List[str]] = []
+    TRUSTED_PROXY_IPS: Union[str, List[str]] = ["*", "127.0.0.1", "::1"]
 
     @field_validator("ALLOWED_HOSTS", "TRUSTED_PROXY_IPS", mode="before")
     @classmethod
@@ -203,11 +203,11 @@ class Settings(BaseSettings):
         return v  # type: ignore[return-value]
 
     # Security & Rate Limiting
-    RATE_LIMIT_LOGIN_ATTEMPTS: int = Field(default=5, ge=1, le=100)
-    RATE_LIMIT_REGISTER_ATTEMPTS: int = Field(default=5, ge=1, le=100)
-    RATE_LIMIT_REFRESH_ATTEMPTS: int = Field(default=30, ge=1, le=1000)
+    RATE_LIMIT_LOGIN_ATTEMPTS: int = Field(default=15, ge=1, le=100)
+    RATE_LIMIT_REGISTER_ATTEMPTS: int = Field(default=15, ge=1, le=100)
+    RATE_LIMIT_REFRESH_ATTEMPTS: int = Field(default=60, ge=1, le=1000)
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=10, le=86400)
-    RATE_LIMIT_BLOCK_SECONDS: int = Field(default=300, ge=10, le=86400)
+    RATE_LIMIT_BLOCK_SECONDS: int = Field(default=60, ge=10, le=86400)
 
     @property
     def secure_cookies(self) -> bool:

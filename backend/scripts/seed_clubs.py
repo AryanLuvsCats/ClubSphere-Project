@@ -37,6 +37,14 @@ from app.models.models import (  # noqa: E402
 )
 
 DEFAULT_PASSWORD = "password123"
+_CACHED_PASSWORD_HASH = None
+
+
+def get_cached_password_hash() -> str:
+    global _CACHED_PASSWORD_HASH
+    if _CACHED_PASSWORD_HASH is None:
+        _CACHED_PASSWORD_HASH = get_password_hash(DEFAULT_PASSWORD)
+    return _CACHED_PASSWORD_HASH
 
 
 def utc_naive(days_offset: int = 0, hours_offset: int = 0) -> datetime:
@@ -78,7 +86,7 @@ def get_or_create_user(
 
     user = User(
         Email=email.lower(),
-        PasswordHash=get_password_hash(DEFAULT_PASSWORD),
+        PasswordHash=get_cached_password_hash(),
         FullName=full_name,
         RoleId=role.RoleId,
         ProgramId=program_id,
@@ -96,6 +104,9 @@ def upsert_club(
     manager: User,
     description: str,
     status: str = "active",
+    motives: str | None = None,
+    past_achievements: list[dict] | None = None,
+    leadership_contacts: list[dict] | None = None,
 ) -> Club:
     """Find existing club by name or create a new one, ensuring idempotent execution."""
     prog = db.query(Program).filter(Program.ProgramKey == program_key).first()
@@ -108,6 +119,12 @@ def upsert_club(
         club.ManagerUserId = manager.UserId
         club.Description = description
         club.Status = status
+        if motives is not None:
+            club.Motives = motives
+        if past_achievements is not None:
+            club.PastAchievements = past_achievements
+        if leadership_contacts is not None:
+            club.LeadershipContacts = leadership_contacts
         db.flush()
     else:
         club = Club(
@@ -115,6 +132,9 @@ def upsert_club(
             ProgramId=prog.ProgramId,
             ManagerUserId=manager.UserId,
             Description=description,
+            Motives=motives,
+            PastAchievements=past_achievements or [],
+            LeadershipContacts=leadership_contacts or [],
             Status=status,
             CreatedAt=utc_naive(days_offset=-30),
         )
@@ -311,6 +331,57 @@ def seed_clubs() -> None:
                 "category": "Technology / AI",
                 "program_key": "btech_cse_aiml",
                 "manager": mgr_aiml,
+                "motives": (
+                    "To democratize Artificial Intelligence education, foster interdisciplinary machine learning research, "
+                    "and train students in generative AI, deep neural networks, and ethical computation. We bridge the gap between "
+                    "classroom mathematics and real-world deployment through industry-partnered projects, Kaggle sprints, and open-source models."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "Smart India Hackathon National Champions",
+                        "date": "Nov 2025",
+                        "description": "Won 1st Place in the AI & Computer Vision category by building an automated multimodal crop disease diagnostic platform.",
+                        "award_or_highlight": "1st Place & ₹1,00,000 Cash Prize",
+                    },
+                    {
+                        "title": "Kaggle LLM Benchmark Grandmaster Sprint",
+                        "date": "Aug 2025",
+                        "description": "Ranked in the top 1.5% globally in the Kaggle Open-Source LLM Fine-Tuning and Model Distillation competition.",
+                        "award_or_highlight": "Kaggle Gold Medalist Finish",
+                    },
+                    {
+                        "title": "Annual Campus AI Symposium 2026",
+                        "date": "Jan 2026",
+                        "description": "Hosted 450+ delegates and presented 8 peer-reviewed research papers in collaboration with top industry lab scientists.",
+                        "award_or_highlight": "Best Campus Technical Symposium",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Aarav Sharma",
+                        "email": "aarav.sharma@clubsphere.edu",
+                        "phone": "+91 98765 43210",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Sneha Verma",
+                        "email": "sneha.verma@clubsphere.edu",
+                        "phone": "+91 98765 43211",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Dev Patel",
+                        "email": "dev.patel@clubsphere.edu",
+                        "phone": "+91 98765 43212",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Kabir Mehta",
+                        "email": "kabir.mehta@clubsphere.edu",
+                        "phone": "+91 98765 43213",
+                    },
+                ],
                 "description": (
                     "**Pioneering Artificial Intelligence, Machine Learning & Intelligent Systems**\n\n"
                     "• **Category:** Technology / AI\n"
@@ -336,6 +407,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 4,
                     },
+                    {
+                        "title": "Generative AI Bootcamp: Fine-Tuning LLMs on Custom Data",
+                        "venue": "Computing Lab 4 (Block B)",
+                        "days_offset": -40,
+                        "capacity": 80,
+                        "status": "completed",
+                        "attended": 5,
+                    },
                 ],
             },
             {
@@ -343,6 +422,57 @@ def seed_clubs() -> None:
                 "category": "Engineering / Robotics",
                 "program_key": "btech_robotics",
                 "manager": mgr_robox,
+                "motives": (
+                    "To empower students in hardware fabrication, autonomous navigation, embedded robotics, and ROS2 systems. "
+                    "RoboX cultivates hands-on engineering instincts by designing combat-ready battlebots, autonomous rovers, "
+                    "and multi-rotor UAV systems that compete at national engineering exhibitions."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "IIT Techfest Robowars Champions",
+                        "date": "Dec 2025",
+                        "description": "Dominant 1st place in the national 30kg combat robotics heavyweight championship.",
+                        "award_or_highlight": "National Robowars Gold Trophy & ₹1,50,000",
+                    },
+                    {
+                        "title": "Autonomous Rover Challenge",
+                        "date": "Sep 2025",
+                        "description": "Designed and tested a fully autonomous GPS-guided terrain rover with LiDAR obstacle avoidance.",
+                        "award_or_highlight": "Best Autonomous Hardware Design",
+                    },
+                    {
+                        "title": "Campus Maker Faire Showcase",
+                        "date": "Jan 2026",
+                        "description": "Demonstrated 12 custom robotic prototypes to over 2,000 university students and visiting school groups.",
+                        "award_or_highlight": "Excellence in Engineering Outreach",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Vikramaditya Rao",
+                        "email": "lead.robox@clubsphere.edu",
+                        "phone": "+91 98765 43220",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Ananya Iyer",
+                        "email": "ananya.iyer@clubsphere.edu",
+                        "phone": "+91 98765 43221",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Tanmay Bhatia",
+                        "email": "tanmay.bhatia@clubsphere.edu",
+                        "phone": "+91 98765 43222",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Aditya Joshi",
+                        "email": "aditya.joshi@clubsphere.edu",
+                        "phone": "+91 98765 43223",
+                    },
+                ],
                 "description": (
                     "**Building the Future of Autonomous Machines & Embedded Robotics**\n\n"
                     "• **Category:** Engineering / Robotics\n"
@@ -368,6 +498,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 4,
                     },
+                    {
+                        "title": "Combat Robot Teardown & Armor Fabrication Clinic",
+                        "venue": "Machine Workshop (Block C, Bay 3)",
+                        "days_offset": -35,
+                        "capacity": 35,
+                        "status": "completed",
+                        "attended": 3,
+                    },
                 ],
             },
             {
@@ -375,6 +513,57 @@ def seed_clubs() -> None:
                 "category": "Arts & Culture",
                 "program_key": "ba_liberal_arts",
                 "manager": mgr_finearts,
+                "motives": (
+                    "To celebrate creative self-expression, studio painting, digital illustration, and campus aesthetic culture. "
+                    "FineArts provides an inspiring sanctuary for student artists of all majors to explore mediums from watercolor and oil "
+                    "to digital concept art and large-scale architectural murals."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "State University Art Biennial Gold",
+                        "date": "Nov 2025",
+                        "description": "Won 1st prize in contemporary oil painting and mixed-media installation with our collective student canvas.",
+                        "award_or_highlight": "Governor's Gold Medal for Visual Arts",
+                    },
+                    {
+                        "title": "Campus Heritage 200ft Mural Installation",
+                        "date": "Oct 2025",
+                        "description": "Designed and executed a vibrant 200-foot heritage mural celebrating Indian cultural diversity in the central walkway.",
+                        "award_or_highlight": "University Campus Beautification Award",
+                    },
+                    {
+                        "title": "Annual Student Spring Art Gala",
+                        "date": "Feb 2026",
+                        "description": "Showcased 90 original student artworks and auctioned student pieces for charity, raising over ₹1,20,000.",
+                        "award_or_highlight": "Outstanding Cultural Initiative",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Sunaina Kashyap",
+                        "email": "lead.finearts@clubsphere.edu",
+                        "phone": "+91 98765 43230",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Zara Khan",
+                        "email": "zara.khan@clubsphere.edu",
+                        "phone": "+91 98765 43231",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Meera Nair",
+                        "email": "meera.nair@clubsphere.edu",
+                        "phone": "+91 98765 43232",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Dev Patel",
+                        "email": "dev.patel@clubsphere.edu",
+                        "phone": "+91 98765 43233",
+                    },
+                ],
                 "description": (
                     "**Visual Storytelling, Aesthetic Exploration & Contemporary Creative Arts**\n\n"
                     "• **Category:** Arts & Culture\n"
@@ -400,6 +589,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 3,
                     },
+                    {
+                        "title": "Plein Air Watercolor Workshop on the Lawn",
+                        "venue": "Campus Botanical Garden Terrace",
+                        "days_offset": -30,
+                        "capacity": 25,
+                        "status": "completed",
+                        "attended": 4,
+                    },
                 ],
             },
             {
@@ -407,6 +604,57 @@ def seed_clubs() -> None:
                 "category": "Law / Debate",
                 "program_key": "ballb_integrated",
                 "manager": mgr_moot,
+                "motives": (
+                    "To hone courtroom advocacy, constitutional jurisprudence, appellate drafting, and ethical rhetoric. "
+                    "Moot Court prepares aspiring legal scholars to deconstruct complex statutes, examine legal precedents, "
+                    "and compete with distinction in national and international simulated trials."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "National Moot Court Competition Best Memorial",
+                        "date": "Oct 2025",
+                        "description": "Awarded Best Memorial and Runner-up Advocates in the prestigious National Constitutional Law Challenge.",
+                        "award_or_highlight": "Best Memorial & Runner-Up Trophy",
+                    },
+                    {
+                        "title": "All-India Parliamentary Debate Winners",
+                        "date": "Dec 2025",
+                        "description": "Undefeated champion delegation across 28 leading university law schools in Asian Parliamentary debate.",
+                        "award_or_highlight": "Best Delegation Cup 2025",
+                    },
+                    {
+                        "title": "Pro-Bono Community Legal Aid Camp",
+                        "date": "Feb 2026",
+                        "description": "Conducted legal literacy workshops and rights counseling for over 400 underprivileged families.",
+                        "award_or_highlight": "Civic Justice & Leadership Citation",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Adv. Siddharth Sen",
+                        "email": "lead.mootcourt@clubsphere.edu",
+                        "phone": "+91 98765 43240",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Ishita Gupta",
+                        "email": "ishita.gupta@clubsphere.edu",
+                        "phone": "+91 98765 43241",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Ritik Choudhary",
+                        "email": "ritik.choudhary@clubsphere.edu",
+                        "phone": "+91 98765 43242",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Diya Sen",
+                        "email": "diya.sen@clubsphere.edu",
+                        "phone": "+91 98765 43243",
+                    },
+                ],
                 "description": (
                     "**Fostering Rigorous Legal Advocacy, Constitutional Jurisprudence & Public Discourse**\n\n"
                     "• **Category:** Law / Debate\n"
@@ -426,11 +674,19 @@ def seed_clubs() -> None:
                     },
                     {
                         "title": "Constitutional Law Colloquium & Parliamentary Debate",
-                        "venue": "Seminar Hall 1",
+                        "venue": "Seminar Hall 1 (Law Block)",
                         "days_offset": -22,
                         "capacity": 50,
                         "status": "completed",
                         "attended": 3,
+                    },
+                    {
+                        "title": "Memorial Drafting & Legal Research Workshop",
+                        "venue": "Law Library Discussion Suite",
+                        "days_offset": -45,
+                        "capacity": 40,
+                        "status": "completed",
+                        "attended": 4,
                     },
                 ],
             },
@@ -439,6 +695,57 @@ def seed_clubs() -> None:
                 "category": "Technology / Programming",
                 "program_key": "btech_cse",
                 "manager": mgr_codex,
+                "motives": (
+                    "To cultivate world-class software engineering habits, algorithmic mastery, open-source contribution, "
+                    "and systems design. Codex unites competitive coders, kernel tinkerers, and full-stack builders through intense "
+                    "hackathons, code reviews, and distributed systems sprints."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "ACM-ICPC Regional Finalist Qualification",
+                        "date": "Dec 2025",
+                        "description": "Two university teams placed in the top 12 in the Asia-Amritapuri ICPC Regional Contest.",
+                        "award_or_highlight": "Top 12 Regional Rank",
+                    },
+                    {
+                        "title": "HackCodex 36-Hour National Hackathon",
+                        "date": "Jan 2026",
+                        "description": "Organized the premier campus hackathon with 600+ developers, 8 sponsor tracks, and ₹5,00,000 in prizes.",
+                        "award_or_highlight": "Flagship Hackathon of the Year",
+                    },
+                    {
+                        "title": "Open Source Summer Contribution Drive",
+                        "date": "Jul 2025",
+                        "description": "Merged 145+ pull requests into prominent CNCF, Apache, and Mozilla open-source repositories.",
+                        "award_or_highlight": "Global Open Source Recognition",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Karthik Sundaram",
+                        "email": "lead.codex@clubsphere.edu",
+                        "phone": "+91 98765 43250",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Priya Singh",
+                        "email": "priya.singh@clubsphere.edu",
+                        "phone": "+91 98765 43251",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Arjun Kapoor",
+                        "email": "arjun.kapoor@clubsphere.edu",
+                        "phone": "+91 98765 43252",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Kabir Mehta",
+                        "email": "kabir.mehta@clubsphere.edu",
+                        "phone": "+91 98765 43253",
+                    },
+                ],
                 "description": (
                     "**Competitive Programming, Open-Source Engineering & Software Architecture**\n\n"
                     "• **Category:** Technology / Programming\n"
@@ -464,6 +771,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 4,
                     },
+                    {
+                        "title": "Microservices & Distributed Systems Masterclass",
+                        "venue": "Computing Lab 3 (Block D)",
+                        "days_offset": -38,
+                        "capacity": 55,
+                        "status": "completed",
+                        "attended": 5,
+                    },
                 ],
             },
             {
@@ -471,6 +786,57 @@ def seed_clubs() -> None:
                 "category": "Literature & Media",
                 "program_key": "bajmc_general",
                 "manager": mgr_literary,
+                "motives": (
+                    "To champion the transformative art of words, investigative journalism, spoken poetry, and literary critique. "
+                    "Literary serves as the university's intellectual conscience, publishing student journalism, hosting vibrant poetry slams, "
+                    "and providing thoughtful spaces for critical discourse."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "National Inter-University Poetry Laureate",
+                        "date": "Nov 2025",
+                        "description": "Secured 1st and 3rd place in the National Spoken Word & Slam Poetry Invitational in New Delhi.",
+                        "award_or_highlight": "National Slam Poetry Champions",
+                    },
+                    {
+                        "title": "The Campus Chronicle Annual Anthology",
+                        "date": "Dec 2025",
+                        "description": "Published a 140-page print anthology featuring student fiction, investigative campus essays, and photojournalism.",
+                        "award_or_highlight": "Best Collegiate Publication",
+                    },
+                    {
+                        "title": "Three-Day Winter Literature Conclave",
+                        "date": "Feb 2026",
+                        "description": "Curated an acclaimed festival hosting 14 visiting authors, journalists, and poets for masterclasses and panels.",
+                        "award_or_highlight": "Campus Culture Leadership Award",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Nandini Mukherjee",
+                        "email": "lead.literary@clubsphere.edu",
+                        "phone": "+91 98765 43260",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Meera Nair",
+                        "email": "meera.nair@clubsphere.edu",
+                        "phone": "+91 98765 43261",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Aditya Joshi",
+                        "email": "aditya.joshi@clubsphere.edu",
+                        "phone": "+91 98765 43262",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Zara Khan",
+                        "email": "zara.khan@clubsphere.edu",
+                        "phone": "+91 98765 43263",
+                    },
+                ],
                 "description": (
                     "**Creative Nonfiction, Spoken Word Poetry, Book Circles & Campus Journalism**\n\n"
                     "• **Category:** Literature & Media\n"
@@ -496,6 +862,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 4,
                     },
+                    {
+                        "title": "Classic Fiction Book Reading & Critical Review Circle",
+                        "venue": "Central Library Terrace Suite",
+                        "days_offset": -42,
+                        "capacity": 30,
+                        "status": "completed",
+                        "attended": 3,
+                    },
                 ],
             },
             {
@@ -503,6 +877,57 @@ def seed_clubs() -> None:
                 "category": "Science / Biotech",
                 "program_key": "btech_biotech",
                 "manager": mgr_bioverse,
+                "motives": (
+                    "To pioneer scientific inquiry into genomic innovation, molecular biosensing, computational biology, "
+                    "and campus ecological sustainability. Bioverse empowers student researchers to synthesize modern biotechnology "
+                    "solutions that address global healthcare and planetary conservation challenges."
+                ),
+                "past_achievements": [
+                    {
+                        "title": "iGEM Regional Bio-Design Bronze Medal",
+                        "date": "Oct 2025",
+                        "description": "Engineered an enzymatic bacterial biosensor for rapid microplastic detection in university water reservoirs.",
+                        "award_or_highlight": "iGEM Asia-Pacific Bronze Award",
+                    },
+                    {
+                        "title": "FastBio Computational Genomics Sprint",
+                        "date": "Aug 2025",
+                        "description": "Developed an open-source biological sequence alignment acceleration pipeline yielding 4.2x faster search times.",
+                        "award_or_highlight": "Best Bioinformatics Open Innovation",
+                    },
+                    {
+                        "title": "Campus Sustainability & Carbon Offset Audit",
+                        "date": "Jan 2026",
+                        "description": "Conducted comprehensive biological biodiversity and soil health mapping across 50 acres of university grounds.",
+                        "award_or_highlight": "University Green Campus Trophy",
+                    },
+                ],
+                "leadership_contacts": [
+                    {
+                        "role": "President",
+                        "name": "Dr. Shalini Menon",
+                        "email": "lead.bioverse@clubsphere.edu",
+                        "phone": "+91 98765 43270",
+                    },
+                    {
+                        "role": "Vice President",
+                        "name": "Rohan Deshmukh",
+                        "email": "rohan.deshmukh@clubsphere.edu",
+                        "phone": "+91 98765 43271",
+                    },
+                    {
+                        "role": "Media Head",
+                        "name": "Diya Sen",
+                        "email": "diya.sen@clubsphere.edu",
+                        "phone": "+91 98765 43272",
+                    },
+                    {
+                        "role": "Tech Head",
+                        "name": "Ananya Iyer",
+                        "email": "ananya.iyer@clubsphere.edu",
+                        "phone": "+91 98765 43273",
+                    },
+                ],
                 "description": (
                     "**Decoding Biological Systems, Genetic Innovation & Environmental Sustainability**\n\n"
                     "• **Category:** Science / Biotech\n"
@@ -528,6 +953,14 @@ def seed_clubs() -> None:
                         "status": "completed",
                         "attended": 3,
                     },
+                    {
+                        "title": "CRISPR Genome Editing & Bioethics Round Table",
+                        "venue": "Biotech Seminar Room 202",
+                        "days_offset": -32,
+                        "capacity": 40,
+                        "status": "completed",
+                        "attended": 4,
+                    },
                 ],
             },
         ]
@@ -535,6 +968,7 @@ def seed_clubs() -> None:
         print("==> Upserting 7 university clubs and linking members & events...")
         seeded_clubs = []
         for spec in clubs_spec:
+            print(f" -> Upserting club: {spec['name']}...")
             club = upsert_club(
                 db,
                 name=spec["name"],
@@ -542,10 +976,45 @@ def seed_clubs() -> None:
                 manager=spec["manager"],
                 description=spec["description"],
                 status="active",
+                motives=spec.get("motives"),
+                past_achievements=spec.get("past_achievements"),
+                leadership_contacts=spec.get("leadership_contacts"),
             )
             # Add member pool
             for member in spec["members"]:
                 add_member_if_missing(db, club, member, role="Member")
+
+            # Ensure core leadership accounts and memberships
+            for contact in spec.get("leadership_contacts", []):
+                core_u = get_or_create_user(
+                    db,
+                    email=contact["email"],
+                    full_name=contact["name"],
+                    role_name=RoleNameEnum.STUDENT.value,
+                    program_key=spec["program_key"],
+                )
+                existing_mem = (
+                    db.query(ClubMembership)
+                    .filter(
+                        ClubMembership.ClubId == club.ClubId,
+                        ClubMembership.UserId == core_u.UserId,
+                    )
+                    .first()
+                )
+                if existing_mem:
+                    existing_mem.Role = contact["role"]
+                    existing_mem.Status = "active"
+                else:
+                    db.add(
+                        ClubMembership(
+                            ClubId=club.ClubId,
+                            UserId=core_u.UserId,
+                            Status="active",
+                            Role=contact["role"],
+                            JoinedAt=utc_naive(days_offset=-25),
+                        )
+                    )
+                db.flush()
 
             # Add events & registrations
             for ev in spec["events"]:
@@ -562,9 +1031,8 @@ def seed_clubs() -> None:
                 attended_cnt = ev.get("attended", 0)
                 register_users_for_event(db, event_obj, spec["members"], attended_count=attended_cnt)
 
+            db.commit()
             seeded_clubs.append(club)
-
-        db.commit()
 
         print("\n========================================================")
         print("✓ Successfully seeded the 7 University Clubs in ClubSphere!")
