@@ -1,6 +1,7 @@
 import secrets
 from typing import Any, List, Literal, Optional, Union
 
+from sqlalchemy.engine import make_url
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -90,13 +91,31 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod
-    def validate_database_url(cls, v: str) -> str:
+    def normalize_database_url(cls, v: str) -> str:
         url = (v or "").strip()
         if not url:
+            return ""
+        try:
+            parsed = make_url(url)
+        except Exception as exc:
+            raise ValueError("Database URL is malformed; URL-encode special characters in credentials") from exc
+
+        # Keep older PostgreSQL URLs usable while explicitly selecting the
+        # psycopg 3 driver installed by this project.
+        if parsed.drivername in {"postgres", "postgresql"}:
+            parsed = parsed.set(drivername="postgresql+psycopg")
+        if parsed.drivername not in {"sqlite", "sqlite+pysqlite", "postgresql+psycopg"}:
+            raise ValueError("Database URL must use sqlite:// or postgresql+psycopg://")
+        return parsed.render_as_string(hide_password=False)
+
+    @model_validator(mode="after")
+    def validate_database_urls(self):
+        if not self.DATABASE_URL:
             raise ValueError(
                 "DATABASE_URL is not set. Set it to your Neon connection string "
                 "(postgresql://...) in backend/.env."
             )
+        url = self.DATABASE_URL
         # SQLAlchemy no longer understands the legacy postgres:// scheme.
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
@@ -117,7 +136,7 @@ class Settings(BaseSettings):
                     "connection string. In-memory SQLite (sqlite:///:memory:) remains "
                     "available to automated tests."
                 )
-        return url
+        return self
 
     # JWT Authentication
     # An empty value is allowed only outside production, where an ephemeral
@@ -229,6 +248,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_hardening(self):
+        # Validate the DB URLs independently of the environment-specific
+        # production checks above. SQLite remains available for local/tests.
         secret = (self.JWT_SECRET_KEY or "").strip()
         is_weak = (
             not secret
