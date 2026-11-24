@@ -8,6 +8,7 @@ import ClubsPage from './pages/ClubsPage'
 import EventsPage from './pages/EventsPage'
 import JoinClubPage from './pages/JoinClubPage'
 import ApplyClubPage from './pages/ApplyClubPage'
+import ManageClubPage from './pages/ManageClubPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import NotFoundPage from './pages/NotFoundPage'
 
@@ -100,6 +101,7 @@ function AppRoutes() {
         <Route path="events" element={<EventsPage />} />
         <Route path="joinclub" element={<JoinClubPage />} />
         <Route path="applyclub" element={<ApplyClubPage />} />
+        <Route path="manage-club" element={<ManageClubPage />} />
         <Route
           path="admin"
           element={

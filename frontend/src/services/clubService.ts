@@ -1,5 +1,5 @@
 import { api } from './apiClient'
-import type { Club, MembershipJoinResponse, Paginated } from '../domain/types'
+import type { Club, MembershipJoinResponse, MembershipMember, MembershipUpdateRequest, Paginated } from '../domain/types'
 
 export interface GetClubsParams {
   search?: string
@@ -29,5 +29,26 @@ export const clubService = {
 
   async requestJoinClub(clubId: number): Promise<MembershipJoinResponse> {
     return api.post<MembershipJoinResponse>(`/clubs/${clubId}/join`)
+  },
+
+  async getClubMembers(
+    clubId: number,
+    status?: string,
+    page: number = 1,
+    pageSize: number = 50,
+  ): Promise<Paginated<MembershipMember>> {
+    const query = new URLSearchParams()
+    query.set('page', String(page))
+    query.set('page_size', String(pageSize))
+    if (status) query.set('status', status)
+    return api.get<Paginated<MembershipMember>>(`/clubs/${clubId}/members?${query.toString()}`)
+  },
+
+  async updateMembershipStatus(
+    clubId: number,
+    membershipId: number,
+    payload: MembershipUpdateRequest,
+  ): Promise<MembershipMember> {
+    return api.put<MembershipMember>(`/clubs/${clubId}/members/${membershipId}`, payload)
   },
 }

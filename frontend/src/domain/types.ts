@@ -64,6 +64,22 @@ export interface ClubMembership {
   joined_at: string
 }
 
+export interface MembershipMember {
+  membership_id: number
+  club_id: number
+  user_id: number
+  full_name: string
+  email: string
+  status: 'requested' | 'active' | 'removed' | string
+  role: string
+  joined_at: string
+}
+
+export interface MembershipUpdateRequest {
+  status: 'active' | 'removed' | 'requested'
+  role?: string
+}
+
 export interface MembershipJoinResponse {
   membership_id: number
   club_id: number

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
 import { formatDate } from '../lib/format'
 
 export default function NotificationsPopover({ isAuthenticated }: { isAuthenticated: boolean }) {
+  const navigate = useNavigate()
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications(isAuthenticated)
   const [open, setOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -106,6 +108,10 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
                   key={n.notification_id}
                   onClick={() => {
                     if (!n.is_read) void markAsRead(n.notification_id)
+                    if (n.type === 'MEMBERSHIP_REQUEST') {
+                      setOpen(false)
+                      navigate('/manage-club')
+                    }
                   }}
                   className={`flex flex-col gap-1 rounded-xl p-3 text-xs transition cursor-pointer ${
                     n.is_read

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 import { useClubs } from '../hooks/useClubs'
 import { formatDate } from '../lib/format'
 import ProgramSelector from '../components/ProgramSelector'
 import { EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge } from '../components/ui'
 
 export default function ClubsPage() {
+  const { user } = useAuth()
   const {
     clubs,
     search,
@@ -98,12 +100,24 @@ export default function ClubsPage() {
 
               <div className="mt-5 flex items-center justify-between border-t border-rose/25 pt-4">
                 <span className="text-[10px] font-bold uppercase tracking-[.16em] text-olive">Club record</span>
-                <Link
-                  to={`/joinclub?club_id=${club.club_id}`}
-                  className="inline-flex min-h-10 items-center gap-2 border border-blood px-3 py-2 text-xs font-bold uppercase tracking-wide text-blood transition hover:bg-blood hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood"
-                >
-                  Join the club <span aria-hidden="true">↗</span>
-                </Link>
+                <div className="flex items-center gap-2">
+                  {(user?.user_id === club.manager_user_id ||
+                    user?.role === 'Administrator' ||
+                    user?.role === 'Club Manager') && (
+                    <Link
+                      to={`/manage-club?club_id=${club.club_id}`}
+                      className="inline-flex min-h-10 items-center gap-1.5 border border-olive/30 bg-vanilla/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-bean transition hover:bg-olive hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+                    >
+                      Manage ⚙️
+                    </Link>
+                  )}
+                  <Link
+                    to={`/joinclub?club_id=${club.club_id}`}
+                    className="inline-flex min-h-10 items-center gap-2 border border-blood px-3 py-2 text-xs font-bold uppercase tracking-wide text-blood transition hover:bg-blood hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood"
+                  >
+                    Join the club <span aria-hidden="true">↗</span>
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
