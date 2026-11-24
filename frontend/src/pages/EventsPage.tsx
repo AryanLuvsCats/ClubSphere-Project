@@ -25,7 +25,7 @@ export default function EventsPage() {
         subtitle="Every published club event with live seat availability. Register while seats remain and before the registration deadline."
       />
 
-      <div className="editorial-toolbar">
+      <div className="editorial-toolbar gazette-toolbar">
         <input
           type="search"
           value={search}
@@ -53,12 +53,12 @@ export default function EventsPage() {
         <EmptyState title="No events found" hint="There are no events matching the current filters." />
       ) : (
         <>
-        <div className="mb-3 flex items-center justify-between border-b border-rose/30 pb-2">
-          <p className="editorial-label">The campus calendar</p>
-          <p className="text-xs text-olive">{events.length} {events.length === 1 ? 'listing' : 'listings'}</p>
+        <div className="gazette-section-heading">
+          <div><p className="editorial-label">Campus dispatches &amp; telegrams</p><h2>The events board</h2></div>
+          <p className="gazette-count">{events.length} {events.length === 1 ? 'listing' : 'listings'}</p>
         </div>
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {events.map((event) => {
+          {events.map((event, index) => {
             const filled = event.capacity > 0 ? (event.confirmed_registrations / event.capacity) * 100 : 0
             const isFull = event.seats_left <= 0
             const isRegistered = registeredIds.has(event.event_id)
@@ -67,10 +67,10 @@ export default function EventsPage() {
             return (
               <article
                 key={event.event_id}
-                className="editorial-card p-5 sm:p-6"
+                className={`gazette-event-notice p-5 sm:p-6 ${index === 0 ? 'gazette-event-featured' : ''}`}
               >
-                <div className="mb-4 flex items-center justify-between border-b border-rose/25 pb-2">
-                  <span className="editorial-label">Event notice <span className="ml-1 text-olive">No. {String(event.event_id).padStart(3, '0')}</span></span>
+                <div className="gazette-event-ribbon mb-4 flex items-center justify-between pb-2">
+                  <span className="editorial-label">Live telegram <span className="ml-1 text-olive">No. {String(event.event_id).padStart(3, '0')}</span></span>
                   <StatusBadge status={event.status} />
                 </div>
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -86,16 +86,14 @@ export default function EventsPage() {
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blood">
                       Hosted by {event.club_name ?? 'a university club'}
                     </p>
+                    <p className="gazette-event-time mt-3">{new Date(event.event_date).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·').toUpperCase()}</p>
 
                     <dl className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-rose/25 pt-4 text-xs sm:grid-cols-2">
                       <div>
                         <dt className="editorial-label">Venue</dt>
                         <dd className="mt-1 text-bean">{event.venue_text || 'To be announced'}</dd>
                       </div>
-                      <div>
-                        <dt className="editorial-label">Starts</dt>
-                        <dd className="mt-1 font-medium text-bean">{formatDate(event.event_date)}</dd>
-                      </div>
+                      <div><dt className="editorial-label">Date &amp; time</dt><dd className="mt-1 font-medium text-bean">{formatDate(event.event_date)}</dd></div>
                       <div>
                         <dt className="editorial-label">Register by</dt>
                         <dd className="mt-1 text-bean">{formatDate(event.registration_deadline)}</dd>

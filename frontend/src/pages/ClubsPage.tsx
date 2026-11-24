@@ -27,7 +27,7 @@ export default function ClubsPage() {
         subtitle="Browse every chartered student organisation at the university, along with its program, faculty manager and current membership."
       />
 
-      <div className="editorial-toolbar">
+      <div className="editorial-toolbar gazette-toolbar">
         <input
           type="search"
           value={search}
@@ -56,29 +56,24 @@ export default function ClubsPage() {
         />
       ) : (
         <>
-        <div className="mb-3 flex items-center justify-between border-b border-rose/30 pb-2">
-          <p className="editorial-label">The club directory</p>
-          <p className="text-xs text-olive">{clubs.length} {clubs.length === 1 ? 'organisation' : 'organisations'}</p>
+        <div className="gazette-section-heading">
+          <div><p className="editorial-label">Classified &amp; charter columns</p><h2>Clubs directory</h2></div>
+          <p className="gazette-count">{clubs.length} {clubs.length === 1 ? 'organisation' : 'organisations'} on record</p>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="gazette-club-grid">
           {clubs.map((club) => (
             <article
               key={club.club_id}
-              className="editorial-card flex min-h-64 flex-col justify-between p-5 sm:p-6"
+              className="gazette-club-notice flex min-h-64 flex-col justify-between p-5 sm:p-6"
             >
               <div>
-                <div className="mb-4 flex items-center justify-between gap-3 border-b border-rose/25 pb-2">
-                  <span className="editorial-label">Campus organisation</span>
+                <div className="gazette-club-rubric mb-4 flex items-center justify-between gap-3 pb-2">
+                  <span className="editorial-label">{club.program_name || 'Campus charter'}</span>
                   <StatusBadge status={club.status} />
                 </div>
 
                 <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
-
-                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blood">
-                  {club.program_name ?? 'Unassigned program'}
-                </p>
-
-                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-olive">
+                <p className="gazette-club-description mt-3 line-clamp-3 text-sm leading-relaxed text-olive">
                   {club.description?.trim() || 'No description has been provided for this club yet.'}
                 </p>
 
@@ -93,13 +88,11 @@ export default function ClubsPage() {
                   </div>
                 </dl>
 
-                <p className="mt-3 text-xs text-olive">
-                  Edited by <span className="font-semibold text-bean">{club.manager_name ?? '—'}</span>
-                </p>
+                <p className="gazette-club-editor mt-3 text-xs text-olive">Charter steward <span className="font-semibold text-bean">{club.manager_name ?? '—'}</span></p>
               </div>
 
-              <div className="mt-5 flex items-center justify-between border-t border-rose/25 pt-4">
-                <span className="text-[10px] font-bold uppercase tracking-[.16em] text-olive">Club record</span>
+              <div className="gazette-club-actions mt-5 flex items-center justify-between pt-4">
+                <span className="text-[10px] font-bold uppercase tracking-[.16em] text-olive">Charter No. {String(club.club_id).padStart(3, '0')}</span>
                 <div className="flex items-center gap-2">
                   {(user?.user_id === club.manager_user_id ||
                     user?.role === 'Administrator' ||

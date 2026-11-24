@@ -147,8 +147,8 @@ export function createFilmScene(canvas: HTMLCanvasElement): FilmScene | null {
   renderer.toneMappingExposure = 1.05
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(0xffffff)
-  scene.fog = new THREE.FogExp2(0xffffff, 0.009)
+  scene.background = new THREE.Color(0xf5f2ea)
+  scene.fog = new THREE.FogExp2(0xf5f2ea, 0.009)
 
   const camera = new THREE.PerspectiveCamera(42, 16 / 9, 0.1, 80)
   camera.position.set(0, 0.4, 4.4)

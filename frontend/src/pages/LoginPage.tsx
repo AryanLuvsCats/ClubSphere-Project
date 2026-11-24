@@ -61,36 +61,30 @@ export default function LoginPage() {
   }
 
   const inputClasses =
-    'w-full rounded-xl border border-rose/30 bg-white min-h-11 px-4 py-2.5 text-sm text-bean placeholder-rose outline-none transition focus:border-blood focus:ring-2 focus:ring-blood/20'
+    'w-full rounded-none border border-rose/50 bg-[#fffdf8] min-h-11 px-4 py-2.5 text-sm text-bean placeholder-rose outline-none transition focus:border-blood focus:ring-2 focus:ring-blood/15'
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-white px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blood/10 blur-3xl" />
-        <div className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-olive/10 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full bg-blood/10 blur-3xl" />
-      </div>
+    <div className="press-desk relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
 
       <Link
         to="/"
-        className="absolute top-5 left-5 z-10 text-sm font-medium text-olive transition hover:text-bean"
+        className="press-home absolute top-5 left-5 z-10 text-sm font-medium text-olive transition hover:text-bean"
       >
         ← ClubSphere home
       </Link>
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-vanilla p-[1px] shadow-lg shadow-blood/20">
-            <span className="text-lg font-black text-blood">CS</span>
-          </div>
+      <div className="press-pass relative z-10 w-full max-w-md">
+        <div className="press-pass-header mb-8 text-center">
+          <img src="/clubsphere-logo.svg" alt="ClubSphere logo" className="press-pass-logo mx-auto mb-4 h-16 w-16" />
+          <p className="press-pass-eyebrow">University desk · Press pass</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-bean">ClubSphere</h1>
           <p className="mt-2 text-sm text-olive">
             University Club &amp; Activity Lifecycle Management Platform
           </p>
         </div>
 
-        <div className="rounded-2xl border border-rose/30 bg-white p-6 shadow-xl backdrop-blur sm:p-8">
-          <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-rose/20 bg-vanilla/30 p-1">
+        <div className="press-pass-form p-6 sm:p-8">
+          <div className="mb-6 grid grid-cols-2 border border-rose/40 bg-[#eee8da] p-1">
             {(['login', 'register'] as const).map((tab) => (
               <button
                 key={tab}
@@ -99,8 +93,8 @@ export default function LoginPage() {
                   setMode(tab)
                   setError(null)
                 }}
-                className={`min-h-11 rounded-lg px-3 py-2 text-sm font-medium transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood ${
-                  mode === tab ? 'bg-blood text-white shadow' : 'text-olive hover:text-bean'
+                className={`min-h-11 rounded-none px-3 py-2 text-sm font-medium uppercase tracking-wide transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood ${
+                  mode === tab ? 'bg-blood text-white' : 'text-olive hover:text-bean'
                 }`}
               >
                 {tab === 'login' ? 'Sign in' : 'Create account'}
@@ -166,7 +160,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="min-h-11 w-full rounded-xl bg-blood px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blood/20 transition hover:bg-blood/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              className="editorial-button min-h-11 w-full rounded-none bg-blood px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-bean focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {loading ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}
             </button>

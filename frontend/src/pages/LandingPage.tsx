@@ -1,78 +1,49 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { eventService } from '../services/eventService'
+import type { EventItem } from '../domain/types'
 import NewsGlobe from '../components/NewsGlobe'
 import ScrollFilm from '../components/scrollfilm/ScrollFilm'
-
-/* ── static content matching the editorial theme ─────────────────── */
-
-const BRIEF_ITEMS = [
-  {
-    category: 'Campus Life',
-    time: '2h ago',
-    headline: 'Student-led sustainability initiative gains momentum',
-    summary:
-      'A new coalition of clubs launches a campus-wide effort to reduce waste and expand green spaces.',
-  },
-  {
-    category: 'Community',
-    time: '5h ago',
-    headline: 'Cultural festival to unite voices from around the world',
-    summary:
-      "Music, food, and stories take center stage at this year's Global Roots Festival.",
-  },
-  {
-    category: 'Opportunities',
-    time: '7h ago',
-    headline: 'New club grant program supports student innovation',
-    summary:
-      'The university has expanded funding to help student clubs bring bold ideas to life.',
-  },
-]
-
-const AROUND_STORIES = [
-  {
-    date: 'Apr 22, 2025',
-    category: 'Student Voices',
-    title: 'How student clubs are building a kinder, more connected campus',
-  },
-  {
-    date: 'Apr 20, 2025',
-    category: 'Innovation',
-    title: 'From a campus idea to a global stage',
-  },
-  {
-    date: 'Apr 18, 2025',
-    category: 'Community',
-    title: 'Small clubs. Big change.',
-  },
-]
+import GazetteFooter from '../components/GazetteFooter'
 
 /* ── editorial sections ──────────────────────────────────────────── */
 
 function EditorialHeader() {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
+  const editionDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'short', day: 'numeric', year: 'numeric',
+  })
 
   return (
     <header className="ed-header">
-      <div className="ed-header-inner">
-        <div className="ed-brand">
-          <span className="ed-brand-name">ClubSphere</span>
-          <span className="ed-edition">Campus culture • Vol. 01</span>
+      <div className="ed-masthead-meta">
+        <span>Vol. 01 <i>•</i> Campus Edition</span>
+        <span className="ed-masthead-note">The University Gazette &amp; Activity Chronicle</span>
+        <span>{editionDate}</span>
+      </div>
+      <div className="ed-masthead">
+        <div className="ed-masthead-side">Chartered societies<br /><strong>Campus life in orbit</strong></div>
+        <div className="ed-masthead-center">
+          <img src="/clubsphere-logo.svg" alt="" className="ed-masthead-logo" />
+          <div>
+            <span className="ed-brand-name">ClubSphere</span>
+          </div>
         </div>
+        <div className="ed-masthead-side ed-masthead-right">University date<br /><strong>Campus dispatch</strong></div>
+      </div>
+      <div className="ed-header-inner">
         <nav className="ed-nav" aria-label="Campus navigation">
-          <a href="#discover">Discover</a>
-          <a href="#news">News</a>
           <Link to="/clubs">Clubs</Link>
           <Link to="/events">Events</Link>
         </nav>
         {isAuthenticated ? (
           <Link to="/clubs" className="ed-signin">
-            {user?.full_name ? `Open App (${user.full_name.split(' ')[0]})` : 'Open App'} →
+            Enter the platform
           </Link>
         ) : (
           <Link to="/login" className="ed-signin">
-            Sign in
+            Enter the platform
           </Link>
         )}
       </div>
@@ -95,7 +66,7 @@ function HeroCopy() {
         Find the people, ideas, and stories shaping student life.
       </p>
       <Link to={isAuthenticated ? '/clubs' : '/login'} className="ed-text-link">
-        Explore the community <span aria-hidden="true">→</span>
+        Enter the platform <span aria-hidden="true">→</span>
       </Link>
       <div className="ed-manifesto">
         <div>
@@ -107,7 +78,7 @@ function HeroCopy() {
         <div>
           Student clubs
           <br />
-          Campus news
+          Club achievements
           <br />
           Real impact
         </div>
@@ -131,73 +102,65 @@ function GlobeColumn() {
 
 function BriefSidebar() {
   const [today] = useState(() => new Date())
+  const [events, setEvents] = useState<EventItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const dateStr = today.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
 
+  useEffect(() => {
+    let cancelled = false
+    eventService.getEvents({ status: 'published', page_size: 3 })
+      .then((result) => {
+        if (!cancelled) setEvents(result.items)
+      })
+      .catch(() => {
+        if (!cancelled) setError('Campus events are temporarily unavailable.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
   return (
-    <aside className="ed-brief" id="news">
+    <aside className="ed-brief" id="events-brief">
       <div className="ed-brief-header">
-        <h2 className="ed-brief-title">Today's brief</h2>
+        <h2 className="ed-brief-title">Today’s brief · Campus events</h2>
         <span className="ed-brief-date">{dateStr}</span>
       </div>
-      {BRIEF_ITEMS.map((item) => (
-        <article key={item.headline} className="ed-brief-item">
+      {loading && <p className="ed-brief-state">Loading published campus events…</p>}
+      {error && <p className="ed-brief-state" role="status">{error}</p>}
+      {!loading && !error && events.length === 0 && (
+        <p className="ed-brief-state">There are no published campus events to show right now.</p>
+      )}
+      {events.map((item) => (
+        <article key={item.event_id} className="ed-brief-item">
           <div className="ed-brief-meta">
-            <span className="ed-brief-category">{item.category}</span>
-            <span className="ed-brief-time">{item.time}</span>
+            <span className="ed-brief-category">{item.club_name || 'University club'}</span>
+            <span className="ed-brief-time">{new Date(item.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
           </div>
-          <h3 className="ed-brief-headline">{item.headline}</h3>
-          <p className="ed-brief-summary">{item.summary}</p>
+          <h3 className="ed-brief-headline">{item.title}</h3>
+          <dl className="ed-brief-event-details">
+            <div><dt>When</dt><dd>{new Date(item.event_date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</dd></div>
+            <div><dt>Where</dt><dd>{item.venue_text || 'Venue to be announced'}</dd></div>
+            <div><dt>Registration closes</dt><dd>{new Date(item.registration_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</dd></div>
+            <div><dt>Seats left</dt><dd>{item.seats_left} of {item.capacity}</dd></div>
+          </dl>
         </article>
       ))}
       <Link to="/events" className="ed-brief-more">
-        See campus events <span aria-hidden="true">→</span>
+        Explore campus events <span aria-hidden="true">→</span>
       </Link>
     </aside>
   )
 }
 
-function AroundCampus() {
-  return (
-    <section className="ed-around" id="around-campus">
-      <div className="ed-around-inner">
-        <h2 className="ed-around-heading">Around campus</h2>
-        <div className="ed-around-stories">
-          {AROUND_STORIES.map((story) => (
-            <Link key={story.title} to="/clubs" className="ed-around-story">
-              <div className="ed-around-meta">
-                <span>{story.date}</span>
-                <span className="ed-brief-category">{story.category}</span>
-              </div>
-              <div className="ed-around-story-title">
-                <span>{story.title}</span>
-                <span className="ed-around-arrow" aria-hidden="true">
-                  →
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function EditorialFooter() {
-  const { isAuthenticated } = useAuth()
-  const [year] = useState(() => new Date().getFullYear())
-
-  return (
-    <footer className="ed-footer">
-      <span>© {year} ClubSphere · Campus, in orbit</span>
-      <Link to={isAuthenticated ? '/clubs' : '/login'}>
-        {isAuthenticated ? 'Open the platform →' : 'Enter the platform →'}
-      </Link>
-    </footer>
-  )
+  return <GazetteFooter />
 }
 
 /* ── main landing page ───────────────────────────────────────────── */
@@ -207,13 +170,16 @@ export default function LandingPage() {
     <div className="landing" id="top">
       <ScrollFilm />
       <main className="editorial">
+        <div className="ed-ticker" aria-label="Campus announcements">
+          <span className="ed-ticker-label">Campus dispatch</span>
+          <div className="ed-ticker-track"><span>Student clubs</span><i>✦</i><span>Campus events</span><i>✦</i><span>Club achievement reports</span><i>✦</i><span>Ideas, people, community</span><i aria-hidden="true">✦</i><span aria-hidden="true">Student clubs</span><i aria-hidden="true">✦</i><span aria-hidden="true">Campus events</span><i aria-hidden="true">✦</i><span aria-hidden="true">Club achievement reports</span><i aria-hidden="true">✦</i><span aria-hidden="true">Ideas, people, community</span></div>
+        </div>
         <EditorialHeader />
         <section className="ed-hero" aria-label="ClubSphere introduction">
           <HeroCopy />
           <GlobeColumn />
           <BriefSidebar />
         </section>
-        <AroundCampus />
         <EditorialFooter />
       </main>
     </div>

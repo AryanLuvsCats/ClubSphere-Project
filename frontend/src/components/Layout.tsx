@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { NAV_ITEMS, ROLE_LABELS } from '../domain/constants'
 import { canAccessAdmin } from '../domain/permissions'
 import NotificationsPopover from './NotificationsPopover'
+import GazetteFooter from './GazetteFooter'
 
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -81,11 +82,7 @@ export default function Layout() {
 
   const brand = (
       <div className="flex items-center gap-2.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-rose/35 bg-vanilla/60 p-[1px]">
-        <div className="flex h-full w-full items-center justify-center bg-white font-serif text-sm font-black text-blood">
-          CS
-        </div>
-      </div>
+      <img src="/clubsphere-logo.svg" alt="" className="h-9 w-9 shrink-0 rounded-xl" />
       <span className="font-serif text-xl font-bold tracking-tight text-bean">ClubSphere</span>
     </div>
   )
@@ -213,6 +210,7 @@ export default function Layout() {
             <Outlet />
           </div>
         </main>
+        <GazetteFooter />
       </div>
     </div>
   )
