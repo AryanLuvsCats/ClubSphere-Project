@@ -2,7 +2,9 @@
   "name": "clubsphere",
   "private": true,
   "scripts": {
-    "build": "npm --prefix frontend run build"
+    "build": "npm --prefix frontend run build",
+    "seed": "python backend/scripts/seed_clubs.py",
+    "seed:demo": "python backend/scripts/seed_demo.py"
   },
   "dependencies": {
     "@neon/config": "^1.10.0",

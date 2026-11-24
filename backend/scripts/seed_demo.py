@@ -103,59 +103,85 @@ def main() -> None:
         ]
         db.commit()
 
-        # ---- Clubs across different programs --------------------------------
+        # ---- Clubs across different programs (7 Core University Clubs) -------
         def make_club(name: str, program_key: str, mgr: User, description: str) -> Club:
-            club = Club(
-                Name=name,
-                ProgramId=prog(program_key).ProgramId,
-                ManagerUserId=mgr.UserId,
-                Description=description,
-                Status="active",
-            )
-            db.add(club)
+            club = db.query(Club).filter(Club.Name == name).first()
+            if club:
+                club.ProgramId = prog(program_key).ProgramId
+                club.ManagerUserId = mgr.UserId
+                club.Description = description
+                club.Status = "active"
+            else:
+                club = Club(
+                    Name=name,
+                    ProgramId=prog(program_key).ProgramId,
+                    ManagerUserId=mgr.UserId,
+                    Description=description,
+                    Status="active",
+                )
+                db.add(club)
             db.flush()
             # The manager is an active Lead member of every club they run.
-            db.add(ClubMembership(ClubId=club.ClubId, UserId=mgr.UserId, Status="active", Role="Lead"))
+            lead_mem = db.query(ClubMembership).filter(
+                ClubMembership.ClubId == club.ClubId,
+                ClubMembership.UserId == mgr.UserId,
+            ).first()
+            if not lead_mem:
+                db.add(ClubMembership(ClubId=club.ClubId, UserId=mgr.UserId, Status="active", Role="Lead"))
+            else:
+                lead_mem.Status = "active"
+                lead_mem.Role = "Lead"
+            db.flush()
             return club
 
         s = students
-        robotics = make_club(
-            "Robotics & Automation Club", "btech_robotics", manager,
-            "Hands-on builds spanning ROS, embedded systems and autonomous rovers. Weekly lab sessions in the Innovation Workshop.",
-        )
-        coding = make_club(
-            "Coding & Competitive Programming Club", "btech_cse", manager,
-            "Algorithm drills, mock contests and interview preparation. Sends teams to ACM-ICPC and CodeChef circuits.",
-        )
         aiml = make_club(
-            "AI & ML Society", "btech_cse_aiml", faculty,
-            "Paper-reading circles, Kaggle sprints and guest talks on applied machine learning research.",
+            "AIML Club", "btech_cse_aiml", faculty,
+            "Pioneering Artificial Intelligence, Machine Learning, deep learning workshops, and data science hackathons.",
         )
-        design = make_club(
-            "Design & Fashion Studio", "bdes_fashion", manager,
-            "Portfolio clinics, garment construction workshops and an annual campus fashion showcase.",
+        robox = make_club(
+            "RoboX", "btech_robotics", manager,
+            "Hardware prototyping, autonomous robotics, IoT, ROS2 builds, and inter-college bot competitions.",
         )
-        commerce = make_club(
-            "Commerce & Fintech Forum", "bcom_hons", faculty,
-            "Market simulations, ACCA study groups and fintech case-study competitions with industry mentors.",
+        finearts = make_club(
+            "FineArts", "ba_liberal_arts", manager,
+            "Painting, sketching, digital illustration masterclasses, campus wall murals, and annual art exhibitions.",
         )
-        media = make_club(
-            "Media & Journalism Cell", "bajmc_general", manager,
-            "Campus newspaper, photojournalism walks and live coverage of university events.",
+        moot = make_club(
+            "Moot Court", "ballb_integrated", faculty,
+            "Mock trial competitions, constitutional law debates, appellate legal drafting, and public speaking.",
+        )
+        codex = make_club(
+            "Codex", "btech_cse", manager,
+            "Competitive programming, open-source engineering, full-stack software development, and coding bootcamps.",
+        )
+        literary = make_club(
+            "Literary", "bajmc_general", manager,
+            "Creative writing, poetry slams, book clubs, campus newsletters, and editorial publishing.",
+        )
+        bioverse = make_club(
+            "Bioverse", "btech_biotech", faculty,
+            "Biotechnology research, bioinformatics algorithms, environmental sustainability projects, and bio-seminars.",
         )
         db.commit()
 
         def add_members(club: Club, users: list[User]) -> None:
             for u in users:
-                db.add(ClubMembership(ClubId=club.ClubId, UserId=u.UserId, Status="active", Role="Member"))
+                existing_mem = db.query(ClubMembership).filter(
+                    ClubMembership.ClubId == club.ClubId,
+                    ClubMembership.UserId == u.UserId,
+                ).first()
+                if not existing_mem:
+                    db.add(ClubMembership(ClubId=club.ClubId, UserId=u.UserId, Status="active", Role="Member"))
             db.flush()
 
-        add_members(robotics, [s[0], s[4], s[7], s[8]])
-        add_members(coding, [s[0], s[1], s[6], s[7], s[8]])
         add_members(aiml, [s[0], s[2], s[7], s[8], s[9]])
-        add_members(design, [s[3], s[9]])
-        add_members(commerce, [s[2], s[6], s[1]])
-        add_members(media, [s[5], s[9], s[3]])
+        add_members(robox, [s[0], s[4], s[7], s[8]])
+        add_members(finearts, [s[3], s[9], s[2]])
+        add_members(moot, [s[1], s[6], s[7]])
+        add_members(codex, [s[0], s[1], s[6], s[7], s[8]])
+        add_members(literary, [s[5], s[9], s[3]])
+        add_members(bioverse, [s[0], s[4], s[8]])
         db.commit()
 
         # ---- Events with registrations & attendance -------------------------
@@ -168,50 +194,68 @@ def main() -> None:
             status: str,
             creator: User,
         ) -> Event:
-            event = Event(
-                ClubId=club.ClubId,
-                Title=title,
-                VenueText=venue,
-                EventDate=utc_naive(days_offset=days_offset, hours_offset=10),
-                RegistrationDeadline=utc_naive(days_offset=days_offset - 3),
-                Capacity=capacity,
-                Status=status,
-                CreatedByUserId=creator.UserId,
-            )
-            db.add(event)
+            event = db.query(Event).filter(Event.ClubId == club.ClubId, Event.Title == title).first()
+            if event:
+                event.VenueText = venue
+                event.EventDate = utc_naive(days_offset=days_offset, hours_offset=10)
+                event.RegistrationDeadline = utc_naive(days_offset=days_offset - 3)
+                event.Capacity = capacity
+                event.Status = status
+                event.CreatedByUserId = creator.UserId
+            else:
+                event = Event(
+                    ClubId=club.ClubId,
+                    Title=title,
+                    VenueText=venue,
+                    EventDate=utc_naive(days_offset=days_offset, hours_offset=10),
+                    RegistrationDeadline=utc_naive(days_offset=days_offset - 3),
+                    Capacity=capacity,
+                    Status=status,
+                    CreatedByUserId=creator.UserId,
+                )
+                db.add(event)
             db.flush()
             return event
 
         def register(event: Event, users: list[User], attended: int = 0) -> None:
             for i, u in enumerate(users):
-                db.add(EventRegistration(EventId=event.EventId, UserId=u.UserId, Status="confirmed"))
+                if not db.query(EventRegistration).filter(
+                    EventRegistration.EventId == event.EventId,
+                    EventRegistration.UserId == u.UserId,
+                ).first():
+                    db.add(EventRegistration(EventId=event.EventId, UserId=u.UserId, Status="confirmed"))
                 if i < attended:
-                    db.add(
-                        Attendance(
-                            EventId=event.EventId,
-                            UserId=u.UserId,
-                            CheckedInAt=utc_naive(days_offset=0),
-                            RecordedByUserId=manager.UserId,
+                    if not db.query(Attendance).filter(
+                        Attendance.EventId == event.EventId,
+                        Attendance.UserId == u.UserId,
+                    ).first():
+                        db.add(
+                            Attendance(
+                                EventId=event.EventId,
+                                UserId=u.UserId,
+                                CheckedInAt=utc_naive(days_offset=0),
+                                RecordedByUserId=manager.UserId,
+                            )
                         )
-                    )
             db.flush()
 
-        bootcamp = make_event(robotics, "Robotics Bootcamp 2026", "Innovation Workshop, Block C", 14, 40, "published", manager)
-        register(bootcamp, [s[0], s[4], s[7], s[8], s[9]])
+        bootcamp = make_event(robox, "Autonomous Robotics Bootcamp 2026", "Innovation Workshop, Block C", 14, 40, "published", manager)
+        register(bootcamp, [s[0], s[4], s[7], s[8]])
 
-        hackathon = make_event(coding, "Inter-College Hackathon", "Central Computing Lab", 21, 60, "published", manager)
+        hackathon = make_event(codex, "Inter-College CodeSprint Hackathon", "Central Computing Lab", 21, 60, "published", manager)
         register(hackathon, [s[0], s[1], s[6], s[7], s[8]])
 
-        meetup = make_event(aiml, "AI Paper Reading Meetup", "Seminar Hall 2", -10, 30, "completed", faculty)
+        meetup = make_event(aiml, "AI Paper Reading Meetup & Kaggle Sprint", "Seminar Hall 2", -10, 30, "completed", faculty)
         register(meetup, [s[0], s[2], s[7], s[8], s[9]], attended=4)
 
-        portfolio = make_event(design, "Portfolio Review Day", "Design Studio, Block A", 10, 25, "published", manager)
-        register(portfolio, [s[3], s[9]])
+        arts_jam = make_event(finearts, "Annual Wall Mural Jam", "Design Studio, Block A", 10, 25, "published", manager)
+        register(arts_jam, [s[3], s[9], s[2]])
 
-        fintech_comp = make_event(commerce, "Fintech Case Competition", "Auditorium", -25, 50, "completed", faculty)
-        register(fintech_comp, [s[2], s[6], s[1]], attended=3)
+        moot_comp = make_event(moot, "National Moot Court Colloquium", "Moot Court Hall", -25, 50, "completed", faculty)
+        register(moot_comp, [s[1], s[6], s[7]], attended=3)
 
-        make_event(media, "Photojournalism Walk", "Main Quadrangle", 30, 20, "draft", manager)
+        make_event(literary, "Campus Poetry Slam & Open Mic", "Main Quadrangle", 30, 20, "draft", manager)
+        make_event(bioverse, "Bio-Innovation & Bioinformatics Seminar", "Bio-Eng Lab 108", 18, 45, "published", faculty)
         db.commit()
 
         # ---- Proposals covering every workflow state ------------------------
