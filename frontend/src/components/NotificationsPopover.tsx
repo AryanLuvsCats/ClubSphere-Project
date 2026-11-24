@@ -1,14 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
 import { formatDate } from '../lib/format'
 
 export default function NotificationsPopover({ isAuthenticated }: { isAuthenticated: boolean }) {
   const navigate = useNavigate()
-  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications(isAuthenticated)
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading, error, refreshNotifications } = useNotifications(isAuthenticated)
   const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
   const popoverRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const updatePosition = useCallback(() => {
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const panelWidth = Math.min(384, window.innerWidth - 32)
+    const panelHeight = Math.min(430, window.innerHeight - 32)
+    const left = rect.right + 12 + panelWidth <= window.innerWidth - 16
+      ? rect.right + 12
+      : Math.max(16, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 16))
+    const top = rect.bottom + 12 + panelHeight <= window.innerHeight - 16
+      ? rect.bottom + 12
+      : Math.max(16, rect.top - panelHeight - 12)
+    setPosition({ top, left })
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -17,10 +32,17 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
       }
     }
     if (open) {
+      updatePosition()
+      window.addEventListener('resize', updatePosition)
+      window.addEventListener('scroll', updatePosition, true)
       document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      return () => {
+        window.removeEventListener('resize', updatePosition)
+        window.removeEventListener('scroll', updatePosition, true)
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
     }
-  }, [open])
+  }, [open, updatePosition])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -40,7 +62,11 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          const nextOpen = !open
+          setOpen(nextOpen)
+          if (nextOpen) void refreshNotifications()
+        }}
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -72,7 +98,8 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
         <div
           role="dialog"
           aria-label="Notifications"
-          className="absolute right-0 top-12 z-50 w-80 max-w-[90vw] rounded-2xl border border-rose/30 bg-white p-4 shadow-xl backdrop-blur sm:w-96"
+          style={{ top: position.top, left: position.left }}
+          className="notification-panel fixed z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col rounded-sm border border-rose/30 bg-white p-4 shadow-xl sm:w-96"
         >
           <div className="flex items-center justify-between border-b border-rose/30 pb-3">
             <div className="flex items-center gap-2">
@@ -94,9 +121,11 @@ export default function NotificationsPopover({ isAuthenticated }: { isAuthentica
             )}
           </div>
 
-          <div className="mt-3 max-h-80 space-y-2.5 overflow-y-auto pr-1">
+          <div className="mt-3 max-h-[min(20rem,calc(100dvh-10rem))] space-y-2.5 overflow-y-auto pr-1">
             {loading && notifications.length === 0 ? (
               <p className="py-6 text-center text-xs text-olive">Loading notifications…</p>
+            ) : error && notifications.length === 0 ? (
+              <p role="alert" className="py-6 text-center text-xs text-blood">Notifications couldn’t be loaded. Try opening this panel again.</p>
             ) : notifications.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-xs font-semibold text-bean">No notifications yet</p>

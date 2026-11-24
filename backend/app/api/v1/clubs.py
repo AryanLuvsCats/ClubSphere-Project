@@ -20,6 +20,7 @@ from app.models.models import (
     Club,
     ClubMembership,
     Program,
+    Role,
     User,
     Notification,
     Event,
@@ -489,13 +490,26 @@ def request_join_club(
     db.add(membership)
     db.flush()
 
-    # Notify club manager of membership request
-    notification = Notification(
-        UserId=club.ManagerUserId,
-        Type="MEMBERSHIP_REQUEST",
-        Message=f"{current_user.FullName} submitted a membership request for {club.Name}.",
-    )
-    db.add(notification)
+    # Notify the club manager and assigned faculty advisors so the request is
+    # visible to the university reviewers as well as the day-to-day manager.
+    reviewer_ids = {club.ManagerUserId}
+    faculty_advisors = db.query(ClubMembership.UserId).filter(
+        ClubMembership.ClubId == club.ClubId,
+        ClubMembership.Status == "active",
+        ClubMembership.Role.in_(("Faculty Advisor", "Faculty")),
+    ).all()
+    reviewer_ids.update(user_id for (user_id,) in faculty_advisors)
+    program_faculty = db.query(User.UserId).join(Role, User.RoleId == Role.RoleId).filter(
+        User.ProgramId == club.ProgramId,
+        Role.RoleName == RoleNameEnum.FACULTY.value,
+    ).all()
+    reviewer_ids.update(user_id for (user_id,) in program_faculty)
+    for reviewer_id in reviewer_ids - {current_user.UserId}:
+        db.add(Notification(
+            UserId=reviewer_id,
+            Type="MEMBERSHIP_REQUEST",
+            Message=f"{current_user.FullName} submitted a membership request for {club.Name}.",
+        ))
 
     db.commit()
     db.refresh(membership)

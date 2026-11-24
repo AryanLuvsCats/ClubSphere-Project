@@ -26,6 +26,8 @@ from app.models.models import (
     Attendance,
     EventOutcome,
     Club,
+    ClubMembership,
+    Role,
     User,
     Notification,
 )
@@ -241,6 +243,26 @@ def create_event(
     )
     db.add(new_event)
     db.flush()
+
+    if new_event.Status == "draft":
+        faculty_advisors = db.query(ClubMembership.UserId).filter(
+            ClubMembership.ClubId == club.ClubId,
+            ClubMembership.Status == "active",
+            ClubMembership.Role.in_(("Faculty Advisor", "Faculty")),
+        ).all()
+        faculty_ids = {faculty_user_id for (faculty_user_id,) in faculty_advisors}
+        program_faculty = db.query(User.UserId).join(Role, User.RoleId == Role.RoleId).filter(
+            User.ProgramId == club.ProgramId,
+            Role.RoleName == RoleNameEnum.FACULTY.value,
+        ).all()
+        faculty_ids.update(faculty_user_id for (faculty_user_id,) in program_faculty)
+        for faculty_user_id in faculty_ids:
+            if faculty_user_id != current_user.UserId:
+                db.add(Notification(
+                    UserId=faculty_user_id,
+                    Type="EVENT_APPROVAL_REQUEST",
+                    Message=f"{current_user.FullName} submitted '{new_event.Title}' for faculty review for {club.Name}.",
+                ))
 
     record_audit_log(
         db=db,

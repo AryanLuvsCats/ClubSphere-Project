@@ -480,6 +480,7 @@ code {
 .ed-brief-event-details dt { color: var(--ed-red); font: 700 9px/1.4 ui-monospace, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .ed-brief-event-details dd { margin: 2px 0 0; font-size: 12px; }
 .toast-stack { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; width: min(390px, calc(100vw - 36px)); flex-direction: column; gap: 8px; }
+.notification-panel { max-height: calc(100dvh - 2rem); }
 .toast-message { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border: 1px solid var(--ink-black); background: var(--paper-light); padding: 12px 14px; color: var(--ink-black); box-shadow: 3px 3px 0 var(--ink-black); font-size: 13px; animation: toast-in .18s ease-out; }
 .toast-success { border-left: 4px solid #53613B; }
 .toast-error { border-left: 4px solid var(--press-burgundy); }
