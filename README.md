@@ -20,7 +20,7 @@ The diagram below shows the main runtime components and the path a typical reque
 flowchart LR
     Actors["Students · Club Managers · Faculty · Administrators"] --> Browser["Web browser"]
     subgraph Frontend["Frontend · React 19 + TypeScript + Vite"]
-        Landing["Public landing page<br/>React Three Fiber / Three.js visuals"]
+        Landing["Public landing page<br/>Three.js visuals"]
         Pages["Club, event, application,<br/>management and admin pages"]
         Auth["Auth context<br/>in-memory access token"]
         Services["Feature services + API client<br/>credentialed requests"]
@@ -90,11 +90,26 @@ npm run dev
 
 ## Role-Based Access Control
 
-The platform provides dedicated access tiers:
+ClubSphere uses these application roles:
 
-* **Super Admin**: Complete administrative oversight over all clubs, approvals, and platform analytics.
-* **Club Lead**: Manage club profile, schedule events, review memberships, and submit proposals.
-* **Student Member**: Discover clubs, register for campus events, view past registrations, and submit club applications.
+* **Student**: Browse club profiles, request membership, register for events, and submit club proposals.
+* **Club Manager**: Manage assigned clubs, review membership requests, and update the active roster. Managers see the pending-request count for their clubs.
+* **Faculty**: Review club proposals and receive notifications about membership requests for clubs in their program and draft event submissions.
+* **HOD**: Review proposals at the department approval stage and view administrative review tools.
+* **Administrator**: Manage all clubs and platform administration. Administrators see the global pending-request count.
+
+The sidebar shows **Manage club** only to Club Managers and Administrators, and shows **Admin** only to Administrators. Protected pages also apply their own authentication and role checks.
+
+## Key Frontend Features
+
+* **Club directory**: Search and filter clubs by academic program, see membership state on each card, and open a detailed club profile.
+* **Club detail page**: View the club description and strategic vision, faculty steward, leadership contacts, events, and recorded achievements. Sections use consistent editorial headings, bordered cards, and responsive grids.
+* **Membership workflow**: Students can send one request per club and see whether it is pending or active. Managers can approve or reject requests, change active member roles, or remove members. Successful actions show non-blocking toast feedback.
+* **Event board**: Browse published campus events, check dates and remaining seats, and register or cancel a registration.
+* **Notifications**: The authenticated notification panel refreshes when opened and stays within the viewport. Managers receive join-request notices; program faculty also receive those requests and notifications for draft event submissions. Users can mark one or all notices as read.
+* **Editorial interface**: Warm newsprint colors, serif headlines, fine ink rules, responsive page layouts, and the ClubSphere logo carry through the public pages and signed-in workspace. The landing page’s Three.js globe remains independently rendered.
+
+See [docs/UI_GUIDE.md](docs/UI_GUIDE.md) for a page-by-page UI overview and source-file map.
 
 ## Verification & Testing
 
