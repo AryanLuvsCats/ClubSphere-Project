@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clubService } from '../services/clubService'
 import type { Club } from '../domain/types'
+import { useToast } from '../context/ToastContext'
 
 export type JoinState = { kind: 'success' | 'error'; message: string } | null
 
@@ -11,14 +12,19 @@ export function useJoinClub(initialClubId?: string | null) {
   const [error, setError] = useState<string | null>(null)
   const [busyClubId, setBusyClubId] = useState<number | null>(null)
   const [joinState, setJoinState] = useState<Record<number, JoinState>>({})
-  const [requestedClubIds, setRequestedClubIds] = useState<Set<number>>(new Set())
+  const [membershipStatusByClub, setMembershipStatusByClub] = useState<Record<number, string>>({})
+  const toast = useToast()
 
   const loadClubs = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await clubService.getClubs({ search, status: 'active', page_size: 50 })
+      const [res, memberships] = await Promise.all([
+        clubService.getClubs({ search, status: 'active', page_size: 50 }),
+        clubService.getMyMembershipStatuses(),
+      ])
       setClubs(res.items)
+      setMembershipStatusByClub(Object.fromEntries(memberships.map((item) => [item.club_id, item.status])))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load active clubs.')
     } finally {
@@ -36,7 +42,8 @@ export function useJoinClub(initialClubId?: string | null) {
     setJoinState((prev) => ({ ...prev, [club.club_id]: null }))
     try {
       await clubService.requestJoinClub(club.club_id)
-      setRequestedClubIds((prev) => new Set(prev).add(club.club_id))
+      setMembershipStatusByClub((prev) => ({ ...prev, [club.club_id]: 'requested' }))
+      toast.success(`Membership request sent to ${club.name}.`)
       setJoinState((prev) => ({
         ...prev,
         [club.club_id]: {
@@ -52,10 +59,11 @@ export function useJoinClub(initialClubId?: string | null) {
           message: err instanceof Error ? err.message : 'Could not submit your request.',
         },
       }))
+      toast.error(err instanceof Error ? err.message : 'Could not submit your request.')
     } finally {
       setBusyClubId(null)
     }
-  }, [])
+  }, [toast])
 
   return {
     clubs,
@@ -65,7 +73,7 @@ export function useJoinClub(initialClubId?: string | null) {
     error,
     busyClubId,
     joinState,
-    requestedClubIds,
+    membershipStatusByClub,
     requestToJoin,
     initialClubId,
   }

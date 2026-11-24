@@ -8,7 +8,25 @@ export function useClubs() {
   const [branchId, setBranchId] = useState('')
   const [programId, setProgramId] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadingMemberships, setLoadingMemberships] = useState(true)
+  const [membershipStatusByClub, setMembershipStatusByClub] = useState<Record<number, string>>({})
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    clubService.getMyMembershipStatuses()
+      .then((items) => {
+        if (cancelled) return
+        setMembershipStatusByClub(Object.fromEntries(items.map((item) => [item.club_id, item.status])))
+      })
+      .catch(() => {
+        if (!cancelled) setMembershipStatusByClub({})
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMemberships(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -49,7 +67,8 @@ export function useClubs() {
     setBranchId,
     programId,
     setProgramId,
-    loading,
+    loading: loading || loadingMemberships,
     error,
+    membershipStatusByClub,
   }
 }

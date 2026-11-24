@@ -17,7 +17,8 @@ export const NAV_ITEMS = [
   { to: '/events', label: 'Events', icon: '📅' },
   { to: '/joinclub', label: 'Join club', icon: '🤝' },
   { to: '/applyclub', label: 'Apply for club', icon: '📝' },
-  { to: '/manage-club', label: 'Manage club', icon: '👥' },
+  { to: '/manage-club', label: 'Manage club', icon: '👥', roles: ['Club Manager', 'Administrator'] },
+  { to: '/admin', label: 'Admin', icon: '🛡️', roles: ['Administrator'] },
 ] as const
 
 export const PROPOSAL_STATUS_TABS = [

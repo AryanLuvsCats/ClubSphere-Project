@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { NAV_ITEMS, ROLE_LABELS } from '../domain/constants'
-import { canAccessAdmin } from '../domain/permissions'
+import { usePendingMembershipCount } from '../hooks/usePendingMembershipCount'
 import NotificationsPopover from './NotificationsPopover'
 import GazetteFooter from './GazetteFooter'
 
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuth()
+  const pendingRequestCount = usePendingMembershipCount(user)
   const navigate = useNavigate()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -148,7 +149,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !('roles' in item) || (item.roles as readonly string[]).includes(user?.role ?? '')).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -156,23 +157,17 @@ export default function Layout() {
               className={linkClass}
             >
               <span aria-hidden className="text-base">{item.icon}</span>
-              {item.label}
+              <span className="min-w-0 flex-1">{item.label}</span>
+              {item.to === '/manage-club' && (
+                <span
+                  aria-label={`${pendingRequestCount} pending requests`}
+                  className="inline-flex min-w-5 items-center justify-center border border-current/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
+                >
+                  {pendingRequestCount}
+                </span>
+              )}
             </NavLink>
           ))}
-
-          {canAccessAdmin(user) && (
-            <>
-              <div className="my-3 border-t border-rose/30" />
-              <NavLink
-                to="/admin"
-                onClick={() => setMenuOpen(false)}
-                className={linkClass}
-              >
-                <span aria-hidden className="text-base">🛡️</span>
-                Admin Dashboard
-              </NavLink>
-            </>
-          )}
         </nav>
 
         {/* Profile and sign out footer */}

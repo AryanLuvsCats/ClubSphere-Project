@@ -53,6 +53,22 @@ export interface Club {
   member_count?: number
 }
 
+export interface MyMembershipStatus {
+  club_id: number
+  status: 'requested' | 'active' | 'removed' | string
+}
+
+export interface ClubPublicProfile extends Club {
+  faculty_convener?: string | null
+  leadership_roster: { full_name: string; role: string }[]
+  upcoming_events: {
+    event_id: number
+    title: string
+    event_date: string
+    venue_text?: string | null
+  }[]
+}
+
 export interface ClubMembership {
   membership_id: number
   club_id: number
@@ -76,7 +92,7 @@ export interface MembershipMember {
 }
 
 export interface MembershipUpdateRequest {
-  status: 'active' | 'removed' | 'requested'
+  status?: 'active' | 'removed' | 'requested'
   role?: string
 }
 

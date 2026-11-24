@@ -43,6 +43,33 @@ class ClubListResponse(StrictRequestModel):
     page_size: int
 
 
+class MyMembershipStatusResponse(StrictRequestModel):
+    club_id: int
+    status: str
+
+
+class PendingRequestCountResponse(StrictRequestModel):
+    count: int
+
+
+class ClubLeadershipEntry(StrictRequestModel):
+    full_name: str
+    role: str
+
+
+class ClubUpcomingEvent(StrictRequestModel):
+    event_id: int
+    title: str
+    event_date: datetime
+    venue_text: Optional[str] = None
+
+
+class ClubPublicProfileResponse(ClubResponse):
+    faculty_convener: Optional[str] = None
+    leadership_roster: List[ClubLeadershipEntry] = Field(default_factory=list)
+    upcoming_events: List[ClubUpcomingEvent] = Field(default_factory=list)
+
+
 class MembershipJoinResponse(StrictRequestModel):
     membership_id: int
     club_id: int
@@ -53,7 +80,10 @@ class MembershipJoinResponse(StrictRequestModel):
 
 class MembershipUpdateRequest(StrictRequestModel):
     status: Optional[str] = Field(default=None, pattern="^(requested|active|removed)$")
-    role: Optional[str] = Field(default=None, pattern="^(Member|Lead)$")
+    role: Optional[str] = Field(
+        default=None,
+        pattern="^(Member|Lead|Coordinator|Technical Lead|Secretary|Faculty Advisor)$",
+    )
 
 
 class MembershipMemberResponse(StrictRequestModel):

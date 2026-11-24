@@ -3,13 +3,15 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { clubService } from '../services/clubService'
 import type { Club, MembershipMember } from '../domain/types'
-import { EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge, SuccessNote } from '../components/ui'
+import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 import { formatDate } from '../lib/format'
+import { useToast } from '../context/ToastContext'
 
 type MembershipTab = 'requested' | 'active' | 'all'
 
 export default function ManageClubPage() {
   const { user } = useAuth()
+  const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const paramClubId = searchParams.get('club_id')
 
@@ -23,8 +25,9 @@ export default function ManageClubPage() {
   const [members, setMembers] = useState<MembershipMember[]>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [actionBusyId, setActionBusyId] = useState<number | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<number, string>>({})
 
   // 1. Fetch clubs managed by current user (or all clubs if Administrator)
   useEffect(() => {
@@ -42,9 +45,9 @@ export default function ManageClubPage() {
         // Filter clubs: admins see all; managers see their assigned clubs
         const manageable = isAdmin
           ? allClubs
-          : allClubs.filter(
-              (c) => c.manager_user_id === user?.user_id || user?.role === 'Club Manager',
-            )
+          : user?.role === 'Club Manager'
+            ? allClubs.filter((c) => c.manager_user_id === user.user_id)
+            : []
 
         setClubs(manageable)
 
@@ -74,7 +77,6 @@ export default function ManageClubPage() {
   const handleSelectClub = (id: number) => {
     setSelectedClubId(id)
     setSearchParams({ club_id: String(id) }, { replace: true })
-    setSuccessMessage(null)
     setError(null)
   }
 
@@ -82,6 +84,7 @@ export default function ManageClubPage() {
   const fetchMembers = useCallback(async () => {
     if (!selectedClubId) {
       setMembers([])
+      setPendingCount(0)
       return
     }
 
@@ -90,8 +93,14 @@ export default function ManageClubPage() {
 
     try {
       const statusParam = activeTab === 'all' ? undefined : activeTab
-      const res = await clubService.getClubMembers(selectedClubId, statusParam, 1, 100)
+      const [res, pending] = await Promise.all([
+        clubService.getClubMembers(selectedClubId, statusParam, 1, 100),
+        activeTab === 'requested'
+          ? Promise.resolve(null)
+          : clubService.getClubMembers(selectedClubId, 'requested', 1, 1),
+      ])
       setMembers(res.items || [])
+      setPendingCount(activeTab === 'requested' ? res.total : pending?.total ?? 0)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load club members.')
       setMembers([])
@@ -113,7 +122,6 @@ export default function ManageClubPage() {
     if (!selectedClubId) return
     setActionBusyId(member.membership_id)
     setError(null)
-    setSuccessMessage(null)
 
     try {
       await clubService.updateMembershipStatus(selectedClubId, member.membership_id, {
@@ -121,10 +129,11 @@ export default function ManageClubPage() {
         role: newStatus === 'active' ? role : undefined,
       })
 
-      const actionLabel = newStatus === 'active' ? 'Approved' : 'Rejected'
-      setSuccessMessage(
-        `${actionLabel} membership request for ${member.full_name} (${member.email}).`,
-      )
+      const statusChanged = member.status !== newStatus
+      const actionLabel = newStatus === 'active'
+        ? statusChanged ? 'Approved membership request for' : 'Updated role for'
+        : member.status === 'requested' ? 'Rejected membership request for' : 'Removed from club'
+      toast.success(`${actionLabel} ${member.full_name}.`)
 
       // Instantly update local state
       if (activeTab === 'requested') {
@@ -139,29 +148,24 @@ export default function ManageClubPage() {
         )
       }
 
-      // Update club member count locally if approved
-      if (newStatus === 'active') {
-        setClubs((prev) =>
-          prev.map((c) =>
-            c.club_id === selectedClubId
-              ? { ...c, member_count: (c.member_count ?? 0) + 1 }
-              : c,
-          ),
-        )
+      if (statusChanged && (newStatus === 'active' || member.status === 'active')) {
+        const delta = newStatus === 'active' ? 1 : -1
+        setClubs((prev) => prev.map((c) => c.club_id === selectedClubId
+          ? { ...c, member_count: Math.max(0, (c.member_count ?? 0) + delta) }
+          : c))
       }
+      if (member.status === 'requested' && statusChanged) setPendingCount((count) => Math.max(0, count - 1))
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : `Failed to ${newStatus === 'active' ? 'approve' : 'reject'} membership request.`,
-      )
+      const message = err instanceof Error ? err.message : `Failed to update ${member.full_name}'s membership.`
+      setError(message)
+      toast.error(message)
     } finally {
       setActionBusyId(null)
     }
   }
 
   const selectedClub = clubs.find((c) => c.club_id === selectedClubId)
-  const pendingCount = activeTab === 'requested' ? members.length : 0
+  const roleOptions = ['Member', 'Lead', 'Coordinator', 'Technical Lead', 'Secretary']
 
   return (
     <div>
@@ -172,21 +176,13 @@ export default function ManageClubPage() {
       />
 
       {error && <div className="mb-4"><ErrorNote message={error} /></div>}
-      {successMessage && <div className="mb-4"><SuccessNote message={successMessage} /></div>}
 
       {loadingClubs ? (
-        <div className="py-12 flex justify-center">
-          <Spinner label="Loading managed clubs" />
-        </div>
+        <SkeletonGrid count={2} compact />
       ) : clubs.length === 0 ? (
         <div className="editorial-card p-8 text-center sm:p-12">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-vanilla text-2xl text-bean">
-            🏛️
-          </div>
-          <h2 className="text-xl font-bold text-bean">No Managed Clubs Found</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-olive">
-            Your account ({user?.email}) is not currently designated as the manager of any club. Club manager roles are assigned by university administrators or faculty advisors.
-          </p>
+          <h2 className="text-xl font-bold text-bean">No clubs assigned to your account yet</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-olive">An administrator can assign a club to your account. Once assigned, its membership requests and roster will appear here.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               to="/clubs"
@@ -249,7 +245,6 @@ export default function ManageClubPage() {
                 type="button"
                 onClick={() => {
                   setActiveTab('requested')
-                  setSuccessMessage(null)
                 }}
                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
                   activeTab === 'requested'
@@ -258,18 +253,13 @@ export default function ManageClubPage() {
                 }`}
               >
                 <span>Pending Requests</span>
-                {activeTab === 'requested' && (
-                  <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
-                    {pendingCount}
-                  </span>
-                )}
+                <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">{pendingCount}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab('active')
-                  setSuccessMessage(null)
                 }}
                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
                   activeTab === 'active'
@@ -284,7 +274,6 @@ export default function ManageClubPage() {
                 type="button"
                 onClick={() => {
                   setActiveTab('all')
-                  setSuccessMessage(null)
                 }}
                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition cursor-pointer ${
                   activeTab === 'all'
@@ -321,9 +310,7 @@ export default function ManageClubPage() {
 
           {/* Members / Requests List */}
           {loadingMembers ? (
-            <div className="py-12 flex justify-center">
-              <Spinner label={`Loading ${activeTab === 'requested' ? 'membership requests' : 'members'}`} />
-            </div>
+            <SkeletonGrid count={3} compact />
           ) : members.length === 0 ? (
             <EmptyState
               title={
@@ -411,15 +398,30 @@ export default function ManageClubPage() {
                           </button>
                         </>
                       ) : member.status === 'active' ? (
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void handleUpdateStatus(member, 'removed')}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose/30 bg-white px-3 py-1.5 text-xs font-medium text-olive transition hover:border-blood/30 hover:bg-blood/5 hover:text-blood disabled:opacity-50 cursor-pointer"
-                          title="Remove from club roster"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="sr-only" htmlFor={`member-role-${member.membership_id}`}>Role for {member.full_name}</label>
+                          <select
+                            id={`member-role-${member.membership_id}`}
+                            value={memberRoleDrafts[member.membership_id] ?? member.role}
+                            onChange={(event) => setMemberRoleDrafts((prev) => ({ ...prev, [member.membership_id]: event.target.value }))}
+                            className="editorial-field min-h-9 px-2 py-1 text-xs"
+                          >
+                            {roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={isBusy || (memberRoleDrafts[member.membership_id] ?? member.role) === member.role}
+                            onClick={() => void handleUpdateStatus(member, 'active', memberRoleDrafts[member.membership_id] ?? member.role)}
+                            className="inline-flex min-h-9 items-center gap-1.5 border border-blood/30 bg-white px-3 py-1.5 text-xs font-bold uppercase text-blood hover:bg-blood hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >Save role</button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void handleUpdateStatus(member, 'removed')}
+                            className="inline-flex min-h-9 items-center gap-1.5 border border-rose/30 bg-white px-3 py-1.5 text-xs font-medium text-olive transition hover:border-blood/30 hover:bg-blood/5 hover:text-blood disabled:opacity-50 cursor-pointer"
+                            title="Remove from club roster"
+                          >Remove</button>
+                        </div>
                       ) : (
                         <button
                           type="button"

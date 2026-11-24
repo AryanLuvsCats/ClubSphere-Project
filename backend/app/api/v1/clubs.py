@@ -1,4 +1,5 @@
 from typing import Literal, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -21,6 +22,7 @@ from app.models.models import (
     Program,
     User,
     Notification,
+    Event,
 )
 from app.schemas.club import (
     ClubCreateRequest,
@@ -31,6 +33,11 @@ from app.schemas.club import (
     MembershipUpdateRequest,
     MembershipMemberResponse,
     MembershipListResponse,
+    MyMembershipStatusResponse,
+    PendingRequestCountResponse,
+    ClubLeadershipEntry,
+    ClubUpcomingEvent,
+    ClubPublicProfileResponse,
 )
 
 router = APIRouter(prefix="/clubs", tags=["Clubs & Memberships"])
@@ -118,6 +125,39 @@ def list_clubs(
     return ClubListResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/my-memberships", response_model=list[MyMembershipStatusResponse])
+def list_my_membership_statuses(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return the signed-in user's own membership states across clubs."""
+    memberships = db.query(ClubMembership).filter(
+        ClubMembership.UserId == current_user.UserId
+    ).all()
+    return [
+        MyMembershipStatusResponse(club_id=item.ClubId, status=item.Status)
+        for item in memberships
+    ]
+
+
+@router.get("/pending-request-count", response_model=PendingRequestCountResponse)
+def get_pending_request_count(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return a manager's assigned-club count or the administrator's global count."""
+    current_role = role_name(current_user)
+    if current_role not in {RoleNameEnum.CLUB_MANAGER.value, RoleNameEnum.ADMINISTRATOR.value}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
+
+    query = db.query(func.count(ClubMembership.MembershipId)).join(
+        Club, ClubMembership.ClubId == Club.ClubId
+    ).filter(ClubMembership.Status == "requested")
+    if not is_admin(current_user):
+        query = query.filter(Club.ManagerUserId == current_user.UserId)
+    return PendingRequestCountResponse(count=query.scalar() or 0)
+
+
 @router.get("/{club_id}", response_model=ClubResponse)
 def get_club_details(
     club_id: int,
@@ -152,6 +192,87 @@ def get_club_details(
         status=club.Status,
         created_at=club.CreatedAt,
         member_count=member_cnt,
+    )
+
+
+@router.get("/{club_id}/public-profile", response_model=ClubPublicProfileResponse)
+def get_club_public_profile(
+    club_id: int,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return public club details, leadership names, and upcoming published events."""
+    club = db.query(Club).filter(Club.ClubId == club_id).first()
+    if not club or not can_view_club(current_user, club):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Club with ID {club_id} not found")
+
+    member_count = db.query(func.count(ClubMembership.MembershipId)).filter(
+        ClubMembership.ClubId == club_id,
+        ClubMembership.Status == "active",
+    ).scalar() or 0
+
+    leadership_roles = ("Lead", "Coordinator", "Technical Lead", "Secretary")
+    leaders = (
+        db.query(ClubMembership)
+        .filter(
+            ClubMembership.ClubId == club_id,
+            ClubMembership.Status == "active",
+            ClubMembership.Role.in_(leadership_roles),
+        )
+        .order_by(ClubMembership.Role.asc(), ClubMembership.JoinedAt.asc())
+        .all()
+    )
+    convener = (
+        db.query(ClubMembership)
+        .filter(
+            ClubMembership.ClubId == club_id,
+            ClubMembership.Status == "active",
+            ClubMembership.Role.in_(("Faculty Advisor", "Faculty")),
+        )
+        .first()
+    )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    upcoming = (
+        db.query(Event)
+        .filter(
+            Event.ClubId == club_id,
+            Event.Status == "published",
+            Event.EventDate >= now,
+        )
+        .order_by(Event.EventDate.asc())
+        .limit(5)
+        .all()
+    )
+
+    return ClubPublicProfileResponse(
+        club_id=club.ClubId,
+        name=club.Name,
+        program_id=club.ProgramId,
+        program_name=club.program.FullName if club.program else None,
+        branch_id=club.program.BranchId if club.program else None,
+        branch_name=club.program.branch.Name if club.program else None,
+        manager_user_id=club.ManagerUserId,
+        manager_name=club.manager.FullName if club.manager else None,
+        description=club.Description,
+        status=club.Status,
+        created_at=club.CreatedAt,
+        member_count=member_count,
+        faculty_convener=convener.user.FullName if convener and convener.user else None,
+        leadership_roster=[
+            ClubLeadershipEntry(full_name=member.user.FullName, role=member.Role)
+            for member in leaders
+            if member.user
+        ],
+        upcoming_events=[
+            ClubUpcomingEvent(
+                event_id=event.EventId,
+                title=event.Title,
+                event_date=event.EventDate,
+                venue_text=event.VenueText,
+            )
+            for event in upcoming
+        ],
     )
 
 
@@ -448,7 +569,7 @@ def update_membership_status(
             detail="Membership record not found in this club",
         )
 
-    if payload.status:
+    if payload.status and payload.status != membership.Status:
         membership.Status = payload.status
         # Notify the student
         notif = Notification(

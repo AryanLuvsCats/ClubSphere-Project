@@ -9,6 +9,26 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
   )
 }
 
+export function SkeletonCard({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`skeleton-card ${compact ? 'skeleton-card-compact' : ''}`} aria-hidden="true">
+      <div className="skeleton-shimmer h-3 w-1/3" />
+      <div className="skeleton-shimmer mt-5 h-6 w-3/4" />
+      <div className="skeleton-shimmer mt-3 h-3 w-full" />
+      <div className="skeleton-shimmer mt-2 h-3 w-5/6" />
+      {!compact && <div className="skeleton-shimmer mt-7 h-10 w-32" />}
+    </div>
+  )
+}
+
+export function SkeletonGrid({ count = 4, compact = false }: { count?: number; compact?: boolean }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading content" aria-busy="true">
+      {Array.from({ length: count }, (_, index) => <SkeletonCard key={index} compact={compact} />)}
+    </div>
+  )
+}
+
 export function ErrorNote({ message }: { message: string }) {
   return (
     <div className="break-words rounded-xl border border-blood/30 bg-blood/10 px-4 py-3 text-sm text-blood">

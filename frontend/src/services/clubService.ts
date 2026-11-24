@@ -1,5 +1,5 @@
 import { api } from './apiClient'
-import type { Club, MembershipJoinResponse, MembershipMember, MembershipUpdateRequest, Paginated } from '../domain/types'
+import type { Club, ClubPublicProfile, MembershipJoinResponse, MembershipMember, MembershipUpdateRequest, MyMembershipStatus, Paginated } from '../domain/types'
 
 export interface GetClubsParams {
   search?: string
@@ -11,6 +11,14 @@ export interface GetClubsParams {
 }
 
 export const clubService = {
+  async getMyMembershipStatuses(): Promise<MyMembershipStatus[]> {
+    return api.get<MyMembershipStatus[]>('/clubs/my-memberships')
+  },
+
+  async getPendingRequestCount(): Promise<{ count: number }> {
+    return api.get<{ count: number }>('/clubs/pending-request-count')
+  },
+
   async getClubs(params: GetClubsParams = {}): Promise<Paginated<Club>> {
     const query = new URLSearchParams()
     query.set('page', String(params.page ?? 1))
@@ -25,6 +33,10 @@ export const clubService = {
 
   async getClub(clubId: number): Promise<Club> {
     return api.get<Club>(`/clubs/${clubId}`)
+  },
+
+  async getClubPublicProfile(clubId: number): Promise<ClubPublicProfile> {
+    return api.get<ClubPublicProfile>(`/clubs/${clubId}/public-profile`)
   },
 
   async requestJoinClub(clubId: number): Promise<MembershipJoinResponse> {

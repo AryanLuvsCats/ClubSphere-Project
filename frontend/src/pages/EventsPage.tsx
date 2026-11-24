@@ -1,6 +1,6 @@
 import { useEvents } from '../hooks/useEvents'
 import { formatDate } from '../lib/format'
-import { EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge } from '../components/ui'
+import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 
 export default function EventsPage() {
   const {
@@ -48,7 +48,7 @@ export default function EventsPage() {
       {error && <ErrorNote message={error} />}
 
       {loading ? (
-        <Spinner label="Loading events" />
+        <SkeletonGrid count={4} compact />
       ) : !error && events.length === 0 ? (
         <EmptyState title="No events found" hint="There are no events matching the current filters." />
       ) : (

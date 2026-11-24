@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { useJoinClub } from '../hooks/useJoinClub'
-import { EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge } from '../components/ui'
+import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 
 export default function JoinClubPage() {
   const [searchParams] = useSearchParams()
@@ -14,7 +14,7 @@ export default function JoinClubPage() {
     error,
     busyClubId,
     joinState,
-    requestedClubIds,
+    membershipStatusByClub,
     requestToJoin,
   } = useJoinClub(targetedClubId)
 
@@ -40,7 +40,7 @@ export default function JoinClubPage() {
       {error && <ErrorNote message={error} />}
 
       {loading ? (
-        <Spinner label="Loading clubs" />
+        <SkeletonGrid count={4} compact />
       ) : !error && clubs.length === 0 ? (
         <EmptyState
           title="No active clubs available"
@@ -56,12 +56,15 @@ export default function JoinClubPage() {
           {clubs.map((club) => {
             const state = joinState[club.club_id]
             const isTargeted = targetedClubId && String(club.club_id) === targetedClubId
-            const isRequested = requestedClubIds.has(club.club_id)
+            const memberStatus = membershipStatusByClub[club.club_id]
+            const isRequested = memberStatus === 'requested' || memberStatus === 'pending'
+            const isActiveMember = memberStatus === 'active'
+            const isAlreadyInClub = isRequested || isActiveMember
 
             return (
               <div
                 key={club.club_id}
-                className={`editorial-card p-5 sm:p-6 ${
+                className={`editorial-card flex h-full flex-col justify-between p-5 sm:p-6 ${
                   isTargeted
                     ? 'border-blood/60 bg-[#fffaf5] ring-1 ring-blood/20'
                     : ''
@@ -78,7 +81,7 @@ export default function JoinClubPage() {
                       )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex h-full flex-col justify-between gap-4 sm:flex-row sm:items-end">
                   <div className="min-w-0">
                     <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blood">
@@ -96,17 +99,19 @@ export default function JoinClubPage() {
                   <button
                     type="button"
                     onClick={() => void requestToJoin(club)}
-                    disabled={busyClubId === club.club_id || isRequested}
+                    disabled={busyClubId === club.club_id || isAlreadyInClub}
                     className={`editorial-button min-h-10 shrink-0 px-4 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed ${
-                      isRequested
+                      isAlreadyInClub || busyClubId === club.club_id
                         ? 'border border-olive/30 bg-olive/10 text-olive'
                         : 'bg-blood text-white hover:bg-bean cursor-pointer'
                     }`}
                   >
                     {busyClubId === club.club_id
                       ? 'Sending…'
-                      : isRequested
-                        ? '✓ Request sent'
+                      : isActiveMember
+                        ? '✓ Active member'
+                        : isRequested
+                          ? '✓ Request sent'
                         : 'Request to join'}
                   </button>
                 </div>
