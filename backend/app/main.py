@@ -113,6 +113,7 @@ def create_application() -> FastAPI:
             "Origin",
             "X-Requested-With",
         ],
+        expose_headers=["Retry-After"],
         max_age=600,
     )
 

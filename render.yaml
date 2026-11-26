@@ -97,13 +97,11 @@ services:
       - key: ALLOWED_MIME_TYPES
         value: image/jpeg,image/png,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document
 
-      - key: RATE_LIMIT_LOGIN_ATTEMPTS
-        value: '10'
-      - key: RATE_LIMIT_REGISTER_ATTEMPTS
-        value: '10'
+      - key: RATE_LIMIT_ENABLED
+        value: 'true'
+      - key: AUTH_RATE_LIMIT
+        value: 20/minute
       - key: RATE_LIMIT_REFRESH_ATTEMPTS
-        value: '60'
-      - key: RATE_LIMIT_WINDOW_SECONDS
         value: '60'
       - key: RATE_LIMIT_BLOCK_SECONDS
         value: '60'

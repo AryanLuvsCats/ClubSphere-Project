@@ -12,7 +12,7 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.config import parse_rate_limit, settings
 from app.models.models import AuthThrottle
 
 
@@ -26,33 +26,39 @@ def _hash_key(scope: str, identifier: str) -> str:
 
 
 def client_ip(request: Request) -> str:
-    """Resolve the client IP without trusting arbitrary forwarded headers.
+    """Extract the real client IP behind reverse proxies (e.g., Render / Cloudflare).
 
-    X-Forwarded-For is only consulted when the direct peer is one of the
-    explicitly configured trusted proxies. We walk from the right so a client
-    cannot spoof an address to bypass throttling.
+    Reads the first IP in X-Forwarded-For or CF-Connecting-IP (falling back to
+    X-Real-IP, then request.client.host only when no proxy header is present).
     """
-    direct = request.client.host if request.client else "unknown"
-    trusted = {ip.strip() for ip in settings.TRUSTED_PROXY_IPS if ip.strip()}
-    if "*" in trusted:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        chain = [part.strip() for part in forwarded.split(",") if part.strip()]
-        if chain:
-            return chain[0]
-        real_ip = request.headers.get("x-real-ip", "").strip()
-        if real_ip:
-            return real_ip
-        return direct
+    forwarded_for = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if forwarded_for:
+        return forwarded_for
 
-    if not trusted or direct not in trusted:
-        return direct
+    cf_ip = request.headers.get("cf-connecting-ip", "").strip()
+    if cf_ip:
+        return cf_ip
 
-    forwarded = request.headers.get("x-forwarded-for", "")
-    chain = [part.strip() for part in forwarded.split(",") if part.strip()]
-    for candidate in reversed(chain):
-        if candidate not in trusted:
-            return candidate
-    return chain[0] if chain else direct
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+
+    return request.client.host if request.client else "unknown"
+
+
+def _auth_limit_config(configured_attempts: int) -> tuple[int, int]:
+    """Resolve effective (attempts, window_seconds) from AUTH_RATE_LIMIT and test overrides."""
+    auth_attempts, auth_window = parse_rate_limit(settings.AUTH_RATE_LIMIT)
+    if configured_attempts < min(20, auth_attempts):
+        attempts = configured_attempts
+    else:
+        attempts = auth_attempts
+    window = (
+        settings.RATE_LIMIT_WINDOW_SECONDS
+        if auth_window == 60 and settings.RATE_LIMIT_WINDOW_SECONDS != 60
+        else auth_window
+    )
+    return attempts, window
 
 
 def _get_or_create(
@@ -111,6 +117,8 @@ def check_rate_limit(
     block_seconds: int,
 ) -> None:
     """Raise 429 when the identifier is currently blocked or over its limit."""
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     now = utc_now_naive()
     key_hash = _hash_key(scope, identifier)
     row = (
@@ -168,6 +176,8 @@ def record_failure(
     block_seconds: int,
 ) -> None:
     """Increment an attempt counter and start a block when the limit is reached."""
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     now = utc_now_naive()
     key_hash = _hash_key(scope, identifier)
     row = _get_or_create(db, scope, key_hash, now)
@@ -211,43 +221,49 @@ def cleanup_expired_throttle_rows(db: Session, older_than_days: int = 1) -> int:
 
 
 def enforce_login_limit(db: Session, request: Request, email: str) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     ip = client_ip(request)
-    ip_max_attempts = max(settings.RATE_LIMIT_LOGIN_ATTEMPTS * 5, 25)
+    attempts, window_seconds = _auth_limit_config(settings.RATE_LIMIT_LOGIN_ATTEMPTS)
+    ip_max_attempts = max(attempts * 5, 25)
     check_rate_limit(
         db,
         "login_ip",
         ip,
         ip_max_attempts,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
     check_rate_limit(
         db,
         "login_account",
         email.lower(),
-        settings.RATE_LIMIT_LOGIN_ATTEMPTS,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        attempts,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
 
 
 def record_login_failure(db: Session, request: Request, email: str) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     ip = client_ip(request)
-    ip_max_attempts = max(settings.RATE_LIMIT_LOGIN_ATTEMPTS * 5, 25)
+    attempts, window_seconds = _auth_limit_config(settings.RATE_LIMIT_LOGIN_ATTEMPTS)
+    ip_max_attempts = max(attempts * 5, 25)
     record_failure(
         db,
         "login_ip",
         ip,
         ip_max_attempts,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
     record_failure(
         db,
         "login_account",
         email.lower(),
-        settings.RATE_LIMIT_LOGIN_ATTEMPTS,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        attempts,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
 
@@ -260,28 +276,36 @@ def clear_login_failures(db: Session, request: Request, email: str) -> None:
 
 
 def enforce_register_limit(db: Session, request: Request) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    attempts, window_seconds = _auth_limit_config(settings.RATE_LIMIT_REGISTER_ATTEMPTS)
     check_rate_limit(
         db,
         "register_ip",
         client_ip(request),
-        settings.RATE_LIMIT_REGISTER_ATTEMPTS,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        attempts,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
 
 
 def record_register_attempt(db: Session, request: Request) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    attempts, window_seconds = _auth_limit_config(settings.RATE_LIMIT_REGISTER_ATTEMPTS)
     record_failure(
         db,
         "register_ip",
         client_ip(request),
-        settings.RATE_LIMIT_REGISTER_ATTEMPTS,
-        settings.RATE_LIMIT_WINDOW_SECONDS,
+        attempts,
+        window_seconds,
         settings.RATE_LIMIT_BLOCK_SECONDS,
     )
 
 
 def enforce_refresh_limit(db: Session, request: Request) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     check_rate_limit(
         db,
         "refresh_ip",
@@ -293,6 +317,8 @@ def enforce_refresh_limit(db: Session, request: Request) -> None:
 
 
 def record_refresh_failure(db: Session, request: Request) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
     record_failure(
         db,
         "refresh_ip",

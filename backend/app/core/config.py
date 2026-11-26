@@ -1,8 +1,50 @@
+import re
 import secrets
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_RATE_LIMIT_RE = re.compile(
+    r"^\s*(\d+)\s*/\s*(\d+)?\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)\s*$",
+    re.IGNORECASE,
+)
+_RATE_LIMIT_UNITS = {
+    "s": 1,
+    "sec": 1,
+    "secs": 1,
+    "second": 1,
+    "seconds": 1,
+    "m": 60,
+    "min": 60,
+    "mins": 60,
+    "minute": 60,
+    "minutes": 60,
+    "h": 3600,
+    "hr": 3600,
+    "hrs": 3600,
+    "hour": 3600,
+    "hours": 3600,
+    "d": 86400,
+    "day": 86400,
+    "days": 86400,
+}
+
+
+def parse_rate_limit(spec: str) -> Tuple[int, int]:
+    """Parse a '<count>/<unit>' string (e.g. '20/minute') into (attempts, window_seconds)."""
+    match = _RATE_LIMIT_RE.match(spec or "")
+    if not match:
+        raise ValueError(
+            f"Invalid rate limit specification '{spec}'. Expected format like '20/minute'."
+        )
+    attempts = int(match.group(1))
+    multiplier = int(match.group(2)) if match.group(2) else 1
+    unit_seconds = _RATE_LIMIT_UNITS[match.group(3).lower()]
+    if attempts < 1 or multiplier < 1:
+        raise ValueError(f"Rate limit counts must be >= 1 in '{spec}'.")
+    return attempts, multiplier * unit_seconds
 
 
 PLACEHOLDER_SECRETS = {
@@ -203,8 +245,10 @@ class Settings(BaseSettings):
         return v  # type: ignore[return-value]
 
     # Security & Rate Limiting
-    RATE_LIMIT_LOGIN_ATTEMPTS: int = Field(default=15, ge=1, le=100)
-    RATE_LIMIT_REGISTER_ATTEMPTS: int = Field(default=15, ge=1, le=100)
+    RATE_LIMIT_ENABLED: bool = True
+    AUTH_RATE_LIMIT: str = Field(default="20/minute")
+    RATE_LIMIT_LOGIN_ATTEMPTS: int = Field(default=20, ge=1, le=1000)
+    RATE_LIMIT_REGISTER_ATTEMPTS: int = Field(default=20, ge=1, le=1000)
     RATE_LIMIT_REFRESH_ATTEMPTS: int = Field(default=60, ge=1, le=1000)
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=10, le=86400)
     RATE_LIMIT_BLOCK_SECONDS: int = Field(default=60, ge=10, le=86400)
@@ -266,6 +310,15 @@ class Settings(BaseSettings):
 
         if self.PASSWORD_MAX_LENGTH < self.PASSWORD_MIN_LENGTH:
             raise ValueError("PASSWORD_MAX_LENGTH must be >= PASSWORD_MIN_LENGTH")
+
+        auth_attempts, auth_window = parse_rate_limit(self.AUTH_RATE_LIMIT)
+        if "AUTH_RATE_LIMIT" in self.model_fields_set:
+            if "RATE_LIMIT_LOGIN_ATTEMPTS" not in self.model_fields_set:
+                self.RATE_LIMIT_LOGIN_ATTEMPTS = auth_attempts
+            if "RATE_LIMIT_REGISTER_ATTEMPTS" not in self.model_fields_set:
+                self.RATE_LIMIT_REGISTER_ATTEMPTS = auth_attempts
+            if "RATE_LIMIT_WINDOW_SECONDS" not in self.model_fields_set:
+                self.RATE_LIMIT_WINDOW_SECONDS = auth_window
 
         return self
 

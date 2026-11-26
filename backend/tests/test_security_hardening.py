@@ -593,3 +593,70 @@ def test_production_debug_mode_enforced():
             CORS_ORIGINS=["http://localhost:5173"],
             ALLOWED_HOSTS=["localhost"],
         )
+
+
+def test_client_ip_extracts_proxy_headers():
+    from starlette.requests import Request
+    from app.core.rate_limit import client_ip
+
+    def make_req(headers, client=("10.0.0.1", 12345)):
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/auth/login",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+            "client": client,
+        }
+        return Request(scope)
+
+    # First IP in X-Forwarded-For wins over proxy peer
+    assert client_ip(make_req({"X-Forwarded-For": "203.0.113.9, 10.0.0.2"})) == "203.0.113.9"
+    # CF-Connecting-IP used when X-Forwarded-For absent
+    assert client_ip(make_req({"CF-Connecting-IP": "198.51.100.4"})) == "198.51.100.4"
+    # Direct peer used only when no proxy header is present
+    assert client_ip(make_req({})) == "10.0.0.1"
+
+
+def test_auth_rate_limit_config_and_toggle(client, student_user, db_session, monkeypatch):
+    _clear_throttle(db_session)
+    monkeypatch.setattr(settings, "AUTH_RATE_LIMIT", "2/minute")
+    monkeypatch.setattr(settings, "RATE_LIMIT_BLOCK_SECONDS", 60)
+
+    try:
+        # Different forwarded IPs have independent buckets on register
+        r1 = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Forwarded-For": "198.51.100.10"},
+            json={"email": f"u1-{uuid.uuid4().hex[:6]}@univ.edu", "password": "SecurePassword123!", "full_name": "User One"},
+        )
+        r2 = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Forwarded-For": "198.51.100.10"},
+            json={"email": f"u2-{uuid.uuid4().hex[:6]}@univ.edu", "password": "SecurePassword123!", "full_name": "User Two"},
+        )
+        r3 = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Forwarded-For": "198.51.100.10"},
+            json={"email": f"u3-{uuid.uuid4().hex[:6]}@univ.edu", "password": "SecurePassword123!", "full_name": "User Three"},
+        )
+        r_other_ip = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Forwarded-For": "198.51.100.11"},
+            json={"email": f"u4-{uuid.uuid4().hex[:6]}@univ.edu", "password": "SecurePassword123!", "full_name": "User Four"},
+        )
+        assert r1.status_code == 201
+        assert r2.status_code == 201
+        assert r3.status_code == 429
+        assert "Retry-After" in r3.headers
+        assert r_other_ip.status_code == 201
+
+        # Disabling RATE_LIMIT_ENABLED bypasses the block cleanly
+        monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", False)
+        r_bypassed = client.post(
+            "/api/v1/auth/register",
+            headers={"X-Forwarded-For": "198.51.100.10"},
+            json={"email": f"u5-{uuid.uuid4().hex[:6]}@univ.edu", "password": "SecurePassword123!", "full_name": "User Five"},
+        )
+        assert r_bypassed.status_code == 201
+    finally:
+        _clear_throttle(db_session)

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { ApiError } from '../services/apiClient'
 import ProgramSelector from '../components/ProgramSelector'
 import PasswordField from '../components/PasswordField'
 import { ErrorNote } from '../components/ui'
@@ -21,13 +22,31 @@ export default function LoginPage() {
   const [branchId, setBranchId] = useState('')
   const [programId, setProgramId] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
   const isRegister = mode === 'register'
 
+  useEffect(() => {
+    if (retryAfterSeconds === null || retryAfterSeconds <= 0) return
+    const timer = window.setInterval(() => {
+      setRetryAfterSeconds((prev) => (prev !== null && prev > 1 ? prev - 1 : 0))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [retryAfterSeconds])
+
+  const displayedError =
+    retryAfterSeconds !== null
+      ? retryAfterSeconds > 0
+        ? `Too many attempts. Please wait ${retryAfterSeconds} ${retryAfterSeconds === 1 ? 'second' : 'seconds'} before trying again.`
+        : 'Rate-limit cooldown ended. You can try signing in again.'
+      : error
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (loading) return
     setError(null)
+    setRetryAfterSeconds(null)
 
     if (isRegister) {
       const validationError = validateRegistrationInput(fullName, email, password)
@@ -54,7 +73,14 @@ export default function LoginPage() {
         navigate(redirectTo, { replace: true })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      if (err instanceof ApiError && err.status === 429) {
+        if (err.retryAfterSeconds !== undefined) {
+          setRetryAfterSeconds(err.retryAfterSeconds)
+        }
+        setError(err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -92,6 +118,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setMode(tab)
                   setError(null)
+                  setRetryAfterSeconds(null)
                 }}
                 className={`min-h-11 rounded-none px-3 py-2 text-sm font-medium uppercase tracking-wide transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood ${
                   mode === tab ? 'bg-blood text-white' : 'text-olive hover:text-bean'
@@ -155,11 +182,12 @@ export default function LoginPage() {
               placeholder={isRegister ? 'Minimum 8 characters' : '••••••••'}
             />
 
-            {error && <ErrorNote message={error} />}
+            {displayedError && <ErrorNote message={displayedError} />}
 
             <button
               type="submit"
               disabled={loading}
+              aria-busy={loading}
               className="editorial-button min-h-11 w-full rounded-none bg-blood px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-bean focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
             >
               {loading ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}

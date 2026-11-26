@@ -253,6 +253,7 @@ def main():
         args.host,
         "--port",
         str(args.backend_port),
+        "--proxy-headers",
     ]
     if not args.no_reload:
         backend_cmd.append("--reload")

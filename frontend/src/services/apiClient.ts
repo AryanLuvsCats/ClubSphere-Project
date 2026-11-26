@@ -16,10 +16,12 @@ export const AUTH_EXPIRED_EVENT = 'clubsphere:auth-expired'
 
 export class ApiError extends Error {
   readonly status: number
+  readonly retryAfterSeconds?: number
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, retryAfterSeconds?: number) {
     super(message)
     this.status = status
+    this.retryAfterSeconds = retryAfterSeconds
     this.name = 'ApiError'
   }
 }
@@ -56,12 +58,44 @@ export function writeStoredProfile(profile: unknown): void {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
 }
 
-async function readErrorMessage(res: Response): Promise<string> {
+export function parseRetryAfterSeconds(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined
+  const trimmed = headerValue.trim()
+  if (!trimmed) return undefined
+
+  const seconds = Number(trimmed)
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.ceil(seconds)
+  }
+
+  const parsedDate = Date.parse(trimmed)
+  if (!Number.isNaN(parsedDate)) {
+    const diffSeconds = Math.ceil((parsedDate - Date.now()) / 1000)
+    return diffSeconds > 0 ? diffSeconds : undefined
+  }
+
+  return undefined
+}
+
+export function formatRetryAfterMessage(seconds?: number): string {
+  if (seconds !== undefined && seconds > 0) {
+    const unit = seconds === 1 ? 'second' : 'seconds'
+    return `Too many attempts. Please wait ${seconds} ${unit} before trying again.`
+  }
+  return 'Too many attempts. Please wait a minute before trying again.'
+}
+
+async function readErrorMessage(res: Response, retryAfterSeconds?: number): Promise<string> {
   try {
     const data: unknown = await res.json()
     if (data && typeof data === 'object' && 'detail' in data) {
       const detail = (data as { detail: unknown }).detail
-      if (typeof detail === 'string') return detail
+      if (typeof detail === 'string') {
+        if (res.status === 429 && retryAfterSeconds !== undefined && !/\d+\s*second/i.test(detail)) {
+          return `${detail.replace(/\.$/, '')}. Please wait ${retryAfterSeconds} ${retryAfterSeconds === 1 ? 'second' : 'seconds'} before trying again.`
+        }
+        return detail
+      }
       if (Array.isArray(detail)) {
         return detail
           .map((d) => {
@@ -75,10 +109,7 @@ async function readErrorMessage(res: Response): Promise<string> {
     // Response was not JSON
   }
   if (res.status === 429) {
-    const retryAfter = res.headers.get('Retry-After')
-    return retryAfter
-      ? `Too many attempts. Please wait ${retryAfter} seconds before trying again.`
-      : 'Too many attempts. Please wait a minute before trying again.'
+    return formatRetryAfterMessage(retryAfterSeconds)
   }
   return `Request failed with status ${res.status}`
 }
@@ -158,7 +189,8 @@ export async function request<T>(path: string, init: RequestInit = {}, allowRefr
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await readErrorMessage(res))
+    const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get('Retry-After'))
+    throw new ApiError(res.status, await readErrorMessage(res, retryAfterSeconds), retryAfterSeconds)
   }
 
   if (res.status === 204) {

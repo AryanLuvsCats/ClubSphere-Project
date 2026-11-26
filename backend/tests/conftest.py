@@ -10,6 +10,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ.pop("DATABASE_URL_UNPOOLED", None)
 # Keep routine fixtures from tripping persistent auth throttles. Individual
 # security tests lower these thresholds with monkeypatch.
+os.environ["AUTH_RATE_LIMIT"] = "100/minute"
 os.environ["RATE_LIMIT_LOGIN_ATTEMPTS"] = "100"
 os.environ["RATE_LIMIT_REGISTER_ATTEMPTS"] = "100"
 os.environ["RATE_LIMIT_REFRESH_ATTEMPTS"] = "100"
