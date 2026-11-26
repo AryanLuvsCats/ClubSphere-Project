@@ -81,9 +81,10 @@ class Settings(BaseSettings):
     DOCS_ENABLED: Optional[bool] = None
 
     # Database
-    # Neon Postgres is the primary supported data store for application data.
+    # Azure SQL Database (T-SQL) is the primary supported data store for application data
+    # (PostgreSQL URLs are also accepted for rollback and source-data migration scripts).
     # No default on purpose: a missing DATABASE_URL must fail loudly instead of
-    # silently falling back to a local SQLite file that diverges from Neon.
+    # silently falling back to a local SQLite file.
     DATABASE_URL: str = ""
     DATABASE_URL_UNPOOLED: str = ""
     NEON_BRANCH: str = ""
@@ -95,7 +96,17 @@ class Settings(BaseSettings):
     DB_POOL_RECYCLE: int = Field(default=300, ge=60, le=3600)
     DB_CONNECT_TIMEOUT: int = Field(default=10, ge=1, le=60)
 
-    # Optional / fallback database connection fields
+    # Optional / fallback Azure SQL Database connection fields
+    AZURE_SQL_SERVER: Optional[str] = None
+    AZURE_SQL_PORT: int = 1433
+    AZURE_SQL_DATABASE: Optional[str] = None
+    AZURE_SQL_USER: Optional[str] = None
+    AZURE_SQL_PASSWORD: Optional[str] = None
+    AZURE_SQL_DRIVER: str = "ODBC Driver 18 for SQL Server"
+    AZURE_SQL_ENCRYPT: str = "yes"
+    AZURE_SQL_TRUST_SERVER_CERTIFICATE: str = "no"
+
+    # Legacy optional Azure PostgreSQL connection fields (kept for backwards compatibility)
     AZURE_POSTGRES_HOST: Optional[str] = None
     AZURE_POSTGRES_PORT: int = 5432
     AZURE_POSTGRES_USER: Optional[str] = None
@@ -112,16 +123,34 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_database_url_from_components(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            import urllib.parse
+
             db_url = (data.get("DATABASE_URL") or "").strip()
-            if not db_url and data.get("AZURE_POSTGRES_HOST"):
-                import urllib.parse
+            if not db_url and data.get("AZURE_SQL_SERVER"):
+                user = urllib.parse.quote_plus(str(data.get("AZURE_SQL_USER") or ""))
+                password = urllib.parse.quote_plus(str(data.get("AZURE_SQL_PASSWORD") or ""))
+                server = str(data.get("AZURE_SQL_SERVER")).strip()
+                port = data.get("AZURE_SQL_PORT", 1433)
+                dbname = str(data.get("AZURE_SQL_DATABASE") or "clubsphere").strip()
+                driver = urllib.parse.quote_plus(
+                    str(data.get("AZURE_SQL_DRIVER") or "ODBC Driver 18 for SQL Server")
+                )
+                encrypt = str(data.get("AZURE_SQL_ENCRYPT") or "yes")
+                trust_cert = str(data.get("AZURE_SQL_TRUST_SERVER_CERTIFICATE") or "no")
+
+                auth_part = f"{user}:{password}@" if user or password else ""
+                data["DATABASE_URL"] = (
+                    f"mssql+pyodbc://{auth_part}{server}:{port}/{dbname}"
+                    f"?driver={driver}&Encrypt={encrypt}&TrustServerCertificate={trust_cert}"
+                )
+            elif not db_url and data.get("AZURE_POSTGRES_HOST"):
                 user = urllib.parse.quote_plus(str(data.get("AZURE_POSTGRES_USER") or ""))
                 password = urllib.parse.quote_plus(str(data.get("AZURE_POSTGRES_PASSWORD") or ""))
                 host = data.get("AZURE_POSTGRES_HOST")
                 port = data.get("AZURE_POSTGRES_PORT", 5432)
                 dbname = data.get("AZURE_POSTGRES_DB", "clubsphere")
                 sslmode = data.get("AZURE_POSTGRES_SSLMODE", "require")
-                
+
                 auth_part = f"{user}:{password}@" if user or password else ""
                 assembled_url = f"postgresql+psycopg://{auth_part}{host}:{port}/{dbname}?sslmode={sslmode}"
                 rootcert = data.get("AZURE_POSTGRES_SSLROOTCERT")
@@ -130,36 +159,56 @@ class Settings(BaseSettings):
                 data["DATABASE_URL"] = assembled_url
         return data
 
-    @field_validator("DATABASE_URL", mode="after")
-    @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        url = (v or "").strip()
+    @staticmethod
+    def _validate_and_normalize_db_url(raw_value: str, *, allow_empty: bool = False) -> str:
+        url = (raw_value or "").strip()
         if not url:
+            if allow_empty:
+                return ""
             raise ValueError(
-                "DATABASE_URL is not set. Set it to your Neon connection string "
-                "(postgresql://...) in backend/.env."
+                "DATABASE_URL is not set. Set it to your Azure SQL Database connection string "
+                "(mssql+pyodbc://...) in backend/.env."
             )
-        # SQLAlchemy no longer understands the legacy postgres:// scheme.
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
-        if not url.startswith(("sqlite://", "postgresql://", "postgresql+psycopg://")):
+        elif url.startswith("mssql://"):
+            url = url.replace("mssql://", "mssql+pyodbc://", 1)
+
+        allowed_prefixes = (
+            "sqlite://",
+            "mssql+pyodbc://",
+            "mssql+aioodbc://",
+            "mssql+pymssql://",
+            "postgresql://",
+            "postgresql+psycopg://",
+        )
+        if not url.startswith(allowed_prefixes):
             raise ValueError(
-                "DATABASE_URL must use postgresql:// or postgresql+psycopg:// "
-                "(sqlite:///:memory: is allowed for tests only)"
+                "DATABASE_URL must use mssql+pyodbc://, mssql+aioodbc://, mssql+pymssql://, "
+                "or postgresql:// (sqlite:///:memory: is allowed for tests only)"
             )
         # Policy: users must never be persisted to a local SQLite file. Only an
-        # in-memory database is permitted, and only because the test suite needs
-        # it (it is discarded when the process exits, so nothing is stored).
+        # in-memory database is permitted for the automated test suite.
         if url.startswith("sqlite"):
             memory_urls = {"sqlite://", "sqlite:///:memory:"}
             if url not in memory_urls and not url.startswith("sqlite:///file::memory:"):
                 raise ValueError(
                     "Local file-based SQLite is disabled: users must be stored only in "
-                    "the remote (Neon) database. Set DATABASE_URL to your postgresql:// "
-                    "connection string. In-memory SQLite (sqlite:///:memory:) remains "
-                    "available to automated tests."
+                    "the remote (Azure SQL / cloud) database. Set DATABASE_URL to your "
+                    "mssql+pyodbc:// connection string. In-memory SQLite (sqlite:///:memory:) "
+                    "remains available to automated tests."
                 )
         return url
+
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        return cls._validate_and_normalize_db_url(v, allow_empty=False)
+
+    @field_validator("DATABASE_URL_UNPOOLED", mode="after")
+    @classmethod
+    def validate_database_url_unpooled(cls, v: str) -> str:
+        return cls._validate_and_normalize_db_url(v, allow_empty=True)
 
     # JWT Authentication
     # An empty value is allowed only outside production, where an ephemeral
@@ -225,8 +274,9 @@ class Settings(BaseSettings):
 
     # Azure Blob Storage & File Uploads
     AZURE_STORAGE_CONNECTION_STRING: str = ""
-    AZURE_STORAGE_CONTAINER_NAME: str = "clubsphere-uploads"
+    AZURE_STORAGE_CONTAINER_NAME: str = "clubsphere-media"
     AZURE_STORAGE_USE_EMULATOR: bool = True
+    AZURE_STORAGE_PUBLIC_READ: bool = False
     LOCAL_UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
     ALLOWED_MIME_TYPES: Union[str, List[str]] = [

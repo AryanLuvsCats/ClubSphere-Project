@@ -9,6 +9,7 @@ from app.api.v1.uploads import router as uploads_router
 from app.api.v1.health import router as health_router
 from app.api.v1.academics import router as academics_router
 from app.api.v1.meta import router as meta_router
+from app.api.v1.analytics import router as analytics_router
 
 api_v1_router = APIRouter()
 
@@ -19,6 +20,7 @@ api_v1_router.include_router(events_router)
 api_v1_router.include_router(proposals_router)
 api_v1_router.include_router(notifications_router)
 api_v1_router.include_router(admin_router)
+api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(uploads_router)
 api_v1_router.include_router(academics_router)
 api_v1_router.include_router(meta_router)

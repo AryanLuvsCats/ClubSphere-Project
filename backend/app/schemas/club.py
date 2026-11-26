@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from app.schemas.common import StrictRequestModel
+from app.schemas.common import StrictRequestModel, validate_safe_media_url
 
 
 class ClubCreateRequest(StrictRequestModel):
@@ -11,7 +11,14 @@ class ClubCreateRequest(StrictRequestModel):
     program_id: int = Field(..., gt=0)
     manager_user_id: int = Field(..., gt=0)
     description: Optional[str] = Field(default=None, max_length=5000)
+    logo_url: Optional[str] = Field(default=None, max_length=500)
+    charter_pdf_url: Optional[str] = Field(default=None, max_length=500)
     status: str = Field(default="active", pattern="^(pending|active|suspended)$")
+
+    @field_validator("logo_url", "charter_pdf_url")
+    @classmethod
+    def check_media_urls(cls, v: Optional[str]) -> Optional[str]:
+        return validate_safe_media_url(v)
 
 
 class ClubAchievement(StrictRequestModel):
@@ -41,10 +48,17 @@ class ClubUpdateRequest(StrictRequestModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=150)
     description: Optional[str] = Field(default=None, max_length=5000)
     motives: Optional[str] = Field(default=None, max_length=10000)
+    logo_url: Optional[str] = Field(default=None, max_length=500)
+    charter_pdf_url: Optional[str] = Field(default=None, max_length=500)
     past_achievements: Optional[List[ClubAchievement]] = None
     leadership_contacts: Optional[List[ClubCoreMember]] = None
     status: Optional[str] = Field(default=None, pattern="^(pending|active|suspended)$")
     manager_user_id: Optional[int] = Field(default=None, gt=0)
+
+    @field_validator("logo_url", "charter_pdf_url")
+    @classmethod
+    def check_media_urls(cls, v: Optional[str]) -> Optional[str]:
+        return validate_safe_media_url(v)
 
 
 class ClubResponse(StrictRequestModel):
@@ -57,6 +71,8 @@ class ClubResponse(StrictRequestModel):
     manager_user_id: int
     manager_name: Optional[str] = None
     description: Optional[str] = None
+    logo_url: Optional[str] = None
+    charter_pdf_url: Optional[str] = None
     status: str
     created_at: datetime
     member_count: Optional[int] = 0

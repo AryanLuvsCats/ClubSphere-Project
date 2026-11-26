@@ -74,7 +74,15 @@ export default function ClubsPage() {
                   <StatusBadge status={club.status} />
                 </div>
 
-                <Link to={`/clubs/${club.club_id}`} className="block text-left transition hover:text-blood focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood">
+                <Link to={`/clubs/${club.club_id}`} className="flex items-start gap-3 text-left transition hover:text-blood focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blood">
+                  {club.logo_url && (
+                    <img
+                      src={club.logo_url}
+                      alt={`${club.name} crest`}
+                      loading="lazy"
+                      className="h-12 w-12 shrink-0 rounded-lg border border-rose/30 bg-vanilla/40 object-cover"
+                    />
+                  )}
                   <h2 className="text-2xl font-semibold leading-tight text-bean hover:text-blood">{club.name}</h2>
                 </Link>
                 <p className="gazette-club-description mt-3 line-clamp-3 text-sm leading-relaxed text-olive">

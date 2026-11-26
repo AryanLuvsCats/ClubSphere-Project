@@ -4,27 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.audit import record_audit_log
-from app.core.authorization import branch_id_for_user, is_hod
-from app.core.database import get_db, escape_like
+from app.core.database import get_db, escape_like, case_insensitive_like
 from app.core.rate_limit import utc_now_naive
 from app.core.rbac import require_roles, RoleNameEnum
 from app.models.models import (
-    Club,
-    ClubProposal,
-    Event,
-    EventRegistration,
-    Attendance,
-    Branch,
-    Program,
     RefreshSession,
     Role,
     User,
     AuditLog,
 )
-from app.schemas.analytics import (
-    AnalyticsOverviewResponse,
-    BranchMetricItem,
-)
+from app.schemas.analytics import AnalyticsOverviewResponse
 from app.schemas.audit import (
     AuditLogResponse,
     AuditLogListResponse,
@@ -34,6 +23,7 @@ from app.schemas.auth import (
     UserRoleUpdateRequest,
     UserAdminListResponse,
 )
+from app.services.analytics import build_analytics_overview
 
 router = APIRouter(prefix="/admin", tags=["Admin & Analytics"])
 
@@ -43,177 +33,8 @@ def get_analytics_overview(
     current_user: User = Depends(require_roles(RoleNameEnum.ADMINISTRATOR.value, RoleNameEnum.HOD.value)),
     db: Session = Depends(get_db),
 ):
-    """Retrieve analytics calculated from actual database records.
-
-    Administrators see institution-wide figures. HODs are restricted to their
-    own academic branch so analytics cannot be used to inspect another branch.
-    """
-    hod_scope = is_hod(current_user)
-    scoped_branch_id = branch_id_for_user(current_user) if hod_scope else None
-
-    def club_query():
-        query = db.query(Club)
-        if hod_scope:
-            if scoped_branch_id is None:
-                return query.filter(Club.ClubId == -1)
-            query = query.join(Program, Club.ProgramId == Program.ProgramId).filter(
-                Program.BranchId == scoped_branch_id
-            )
-        return query
-
-    def event_query():
-        query = db.query(Event)
-        if hod_scope:
-            if scoped_branch_id is None:
-                return query.filter(Event.EventId == -1)
-            query = (
-                query.join(Club, Event.ClubId == Club.ClubId)
-                .join(Program, Club.ProgramId == Program.ProgramId)
-                .filter(Program.BranchId == scoped_branch_id)
-            )
-        return query
-
-    def registration_query():
-        query = db.query(EventRegistration)
-        if hod_scope:
-            if scoped_branch_id is None:
-                return query.filter(EventRegistration.RegistrationId == -1)
-            query = (
-                query.join(Event, EventRegistration.EventId == Event.EventId)
-                .join(Club, Event.ClubId == Club.ClubId)
-                .join(Program, Club.ProgramId == Program.ProgramId)
-                .filter(Program.BranchId == scoped_branch_id)
-            )
-        return query
-
-    def attendance_query():
-        query = db.query(Attendance)
-        if hod_scope:
-            if scoped_branch_id is None:
-                return query.filter(Attendance.AttendanceId == -1)
-            query = (
-                query.join(Event, Attendance.EventId == Event.EventId)
-                .join(Club, Event.ClubId == Club.ClubId)
-                .join(Program, Club.ProgramId == Program.ProgramId)
-                .filter(Program.BranchId == scoped_branch_id)
-            )
-        return query
-
-    total_clubs = club_query().with_entities(func.count(Club.ClubId)).scalar() or 0
-    active_clubs = club_query().filter(Club.Status == "active").with_entities(
-        func.count(Club.ClubId)
-    ).scalar() or 0
-
-    pending_proposals_query = db.query(ClubProposal).filter(
-        ClubProposal.Status.in_(["submitted", "changes_requested"])
-    )
-    if hod_scope:
-        if scoped_branch_id is None:
-            pending_proposals_query = pending_proposals_query.filter(
-                ClubProposal.ProposalId == -1
-            )
-        else:
-            pending_proposals_query = pending_proposals_query.join(
-                Program, ClubProposal.ProgramId == Program.ProgramId
-            ).filter(Program.BranchId == scoped_branch_id)
-    pending_proposals = pending_proposals_query.with_entities(
-        func.count(ClubProposal.ProposalId)
-    ).scalar() or 0
-
-    total_events = event_query().with_entities(func.count(Event.EventId)).scalar() or 0
-    published_events = event_query().filter(Event.Status == "published").with_entities(
-        func.count(Event.EventId)
-    ).scalar() or 0
-
-    total_registrations = registration_query().with_entities(
-        func.count(EventRegistration.RegistrationId)
-    ).scalar() or 0
-    confirmed_registrations = registration_query().filter(
-        EventRegistration.Status == "confirmed"
-    ).with_entities(func.count(EventRegistration.RegistrationId)).scalar() or 0
-
-    total_attendance = attendance_query().with_entities(
-        func.count(Attendance.AttendanceId)
-    ).scalar() or 0
-
-    avg_attendance_rate = 0.0
-    if confirmed_registrations > 0:
-        avg_attendance_rate = round(total_attendance / confirmed_registrations, 4)
-
-    student_query = db.query(User).join(
-        Role, User.RoleId == Role.RoleId
-    ).filter(Role.RoleName == RoleNameEnum.STUDENT.value)
-    if hod_scope:
-        if scoped_branch_id is None:
-            student_query = student_query.filter(User.UserId == -1)
-        else:
-            student_query = student_query.join(
-                Program, User.ProgramId == Program.ProgramId
-            ).filter(Program.BranchId == scoped_branch_id)
-    total_students = student_query.with_entities(func.count(User.UserId)).scalar() or 0
-
-    # Branch breakdown. HODs only receive their own branch's metrics.
-    branches_query = db.query(Branch)
-    if hod_scope:
-        if scoped_branch_id is None:
-            branches_query = branches_query.filter(Branch.BranchId == -1)
-        else:
-            branches_query = branches_query.filter(Branch.BranchId == scoped_branch_id)
-    branches = branches_query.all()
-    branch_metrics: List[BranchMetricItem] = []
-
-    for b in branches:
-        b_active_clubs = (
-            db.query(func.count(Club.ClubId))
-            .join(Program, Club.ProgramId == Program.ProgramId)
-            .filter(Program.BranchId == b.BranchId, Club.Status == "active")
-            .scalar()
-            or 0
-        )
-
-        b_events = (
-            db.query(func.count(Event.EventId))
-            .join(Event.club)
-            .join(Program, Club.ProgramId == Program.ProgramId)
-            .filter(Program.BranchId == b.BranchId)
-            .scalar()
-            or 0
-        )
-
-        b_registrations = (
-            db.query(func.count(EventRegistration.RegistrationId))
-            .join(EventRegistration.event)
-            .join(Event.club)
-            .join(Program, Club.ProgramId == Program.ProgramId)
-            .filter(Program.BranchId == b.BranchId)
-            .scalar()
-            or 0
-        )
-
-        branch_metrics.append(
-            BranchMetricItem(
-                branch_id=b.BranchId,
-                branch_name=b.Name,
-                active_clubs=b_active_clubs,
-                events_hosted=b_events,
-                total_registrations=b_registrations,
-            )
-        )
-
-    return AnalyticsOverviewResponse(
-        total_clubs=total_clubs,
-        active_clubs=active_clubs,
-        pending_proposals=pending_proposals,
-        total_events=total_events,
-        published_events=published_events,
-        total_registrations=total_registrations,
-        confirmed_registrations=confirmed_registrations,
-        total_attendance=total_attendance,
-        avg_attendance_rate=avg_attendance_rate,
-        total_students=total_students,
-        branch_metrics=branch_metrics,
-        department_metrics=branch_metrics,
-    )
+    """Retrieve analytics calculated from actual database records and reporting views."""
+    return build_analytics_overview(current_user, db)
 
 
 @router.get("/audit-logs", response_model=AuditLogListResponse)
@@ -277,8 +98,8 @@ def list_users(
     if search:
         term = f"%{escape_like(search)}%"
         query = query.filter(
-            (User.Email.ilike(term, escape="\\"))
-            | (User.FullName.ilike(term, escape="\\"))
+            case_insensitive_like(User.Email, term)
+            | case_insensitive_like(User.FullName, term)
         )
 
     total = query.count()

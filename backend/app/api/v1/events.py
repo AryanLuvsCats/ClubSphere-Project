@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,7 @@ from app.core.authorization import (
     can_view_event_outcome,
     is_admin,
 )
-from app.core.database import get_db, escape_like
+from app.core.database import get_db, escape_like, case_insensitive_like
 from app.core.rbac import (
     check_club_ownership,
     get_current_active_user,
@@ -44,6 +44,8 @@ from app.schemas.event import (
     EventOutcomeCreateRequest,
     EventOutcomeResponse,
 )
+from app.schemas.upload import UploadResponse
+from app.api.v1.uploads import process_entity_upload
 
 router = APIRouter(prefix="/events", tags=["Events & Registrations"])
 
@@ -104,8 +106,8 @@ def list_events(
     if search:
         search_fmt = f"%{escape_like(search)}%"
         query = query.filter(
-            Event.Title.ilike(search_fmt, escape="\\")
-            | Event.VenueText.ilike(search_fmt, escape="\\")
+            case_insensitive_like(Event.Title, search_fmt)
+            | case_insensitive_like(Event.VenueText, search_fmt)
         )
 
     total = query.count()
@@ -138,6 +140,7 @@ def list_events(
                 club_name=ev.club.Name if ev.club else None,
                 title=ev.Title,
                 venue_text=ev.VenueText,
+                poster_url=ev.PosterUrl,
                 event_date=ev.EventDate,
                 registration_deadline=ev.RegistrationDeadline,
                 capacity=ev.Capacity,
@@ -202,6 +205,7 @@ def get_event_details(
         club_name=event.club.Name if event.club else None,
         title=event.Title,
         venue_text=event.VenueText,
+        poster_url=event.PosterUrl,
         event_date=event.EventDate,
         registration_deadline=event.RegistrationDeadline,
         capacity=event.Capacity,
@@ -235,6 +239,7 @@ def create_event(
         ClubId=club.ClubId,
         Title=payload.title.strip(),
         VenueText=payload.venue_text,
+        PosterUrl=payload.poster_url,
         EventDate=event_dt,
         RegistrationDeadline=deadline_dt,
         Capacity=payload.capacity,
@@ -282,6 +287,7 @@ def create_event(
         club_name=club.Name,
         title=new_event.Title,
         venue_text=new_event.VenueText,
+        poster_url=new_event.PosterUrl,
         event_date=new_event.EventDate,
         registration_deadline=new_event.RegistrationDeadline,
         capacity=new_event.Capacity,
@@ -310,6 +316,8 @@ def update_event(
         event.Title = payload.title.strip()
     if payload.venue_text is not None:
         event.VenueText = payload.venue_text
+    if payload.poster_url is not None:
+        event.PosterUrl = payload.poster_url
 
     target_event_date = payload.event_date.replace(tzinfo=None) if (payload.event_date and payload.event_date.tzinfo) else (payload.event_date or event.EventDate)
     target_deadline = payload.registration_deadline.replace(tzinfo=None) if (payload.registration_deadline and payload.registration_deadline.tzinfo) else (payload.registration_deadline or event.RegistrationDeadline)
@@ -354,6 +362,7 @@ def update_event(
         club_name=event.club.Name if event.club else None,
         title=event.Title,
         venue_text=event.VenueText,
+        poster_url=event.PosterUrl,
         event_date=event.EventDate,
         registration_deadline=event.RegistrationDeadline,
         capacity=event.Capacity,
@@ -614,6 +623,25 @@ def get_event_outcome(
     )
 
 
+@router.post("/{event_id}/banner", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_event_banner(
+    event_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Upload an event poster/banner image to Azure Blob Storage."""
+    return await process_entity_upload(
+        file=file,
+        entity_type="Events",
+        entity_id=event_id,
+        media_kind="poster",
+        current_user=current_user,
+        db=db,
+        allowed_mime_override={"image/jpeg", "image/png", "image/webp"},
+    )
+
+
 @router.post("/{event_id}/outcomes", response_model=EventOutcomeResponse, status_code=status.HTTP_201_CREATED)
 def create_event_outcome(
     event_id: int,
@@ -680,4 +708,23 @@ def create_event_outcome(
         attendance_count_snapshot=outcome.AttendanceCountSnapshot,
         submitted_by_user_id=outcome.SubmittedByUserId,
         submitted_at=outcome.SubmittedAt,
+    )
+
+
+@router.post("/{event_id}/banner", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_event_banner(
+    event_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Upload an event poster/banner image to Azure Blob Storage."""
+    return await process_entity_upload(
+        file=file,
+        entity_type="Events",
+        entity_id=event_id,
+        media_kind="poster",
+        current_user=current_user,
+        db=db,
+        allowed_mime_override={"image/jpeg", "image/png", "image/webp"},
     )

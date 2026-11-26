@@ -48,6 +48,8 @@ export interface Club {
   manager_user_id: number
   manager_name?: string | null
   description?: string | null
+  logo_url?: string | null
+  charter_pdf_url?: string | null
   status: string
   created_at: string
   member_count?: number
@@ -87,6 +89,8 @@ export interface ClubUpdatePayload {
   name?: string
   description?: string
   motives?: string
+  logo_url?: string | null
+  charter_pdf_url?: string | null
   past_achievements?: ClubAchievement[]
   leadership_contacts?: ClubCoreMember[]
   status?: string
@@ -149,6 +153,7 @@ export interface EventItem {
   club_name?: string | null
   title: string
   venue_text?: string | null
+  poster_url?: string | null
   event_date: string
   registration_deadline: string
   capacity: number
@@ -219,6 +224,30 @@ export interface BranchMetric {
   total_registrations: number
 }
 
+export interface ClubAnalyticsSummary {
+  club_id: number
+  club_name: string
+  club_status: string
+  program_id: number
+  program_name?: string | null
+  branch_id: number
+  branch_name: string
+  manager_user_id: number
+  manager_name?: string | null
+  active_members: number
+  pending_members: number
+  removed_members: number
+  leadership_count?: number
+  total_events: number
+  published_events: number
+  completed_events: number
+  confirmed_registrations: number
+  total_attendance: number
+  latest_membership_activity_at?: string | null
+  latest_event_date?: string | null
+  club_created_at?: string | null
+}
+
 export interface AnalyticsOverview {
   total_clubs: number
   active_clubs: number
@@ -231,6 +260,29 @@ export interface AnalyticsOverview {
   avg_attendance_rate: number
   total_students: number
   branch_metrics: BranchMetric[]
+  club_summaries?: ClubAnalyticsSummary[]
+}
+
+export interface AnalyticsExportResult {
+  storage_backend: string
+  container: string
+  blob_path: string
+  blob_url: string
+  size_bytes: number
+  exported_at: string
+}
+
+export interface UploadResult {
+  upload_id: string
+  original_filename: string
+  entity_type: string
+  entity_id: number
+  media_kind?: string | null
+  content_type: string
+  size_bytes: number
+  url: string
+  blob_url?: string | null
+  created_at: string
 }
 
 export interface AuditLog {

@@ -158,9 +158,18 @@ export default function ClubDetailsPage() {
               )}
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-bean leading-tight">
-              {club.name}
-            </h1>
+            <div className="flex items-center gap-4">
+              {club.logo_url && (
+                <img
+                  src={club.logo_url}
+                  alt={`${club.name} crest`}
+                  className="h-16 w-16 shrink-0 rounded-2xl border border-rose/30 bg-vanilla/40 object-cover shadow-sm sm:h-20 sm:w-20"
+                />
+              )}
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-bean leading-tight">
+                {club.name}
+              </h1>
+            </div>
 
             {club.description && (
               <p className="text-sm sm:text-base leading-relaxed text-olive max-w-xl">
@@ -181,6 +190,19 @@ export default function ClubDetailsPage() {
                 <span className="text-olive/70 block text-[10px] uppercase font-bold tracking-wider">Faculty Steward</span>
                 <span className="font-medium text-bean">{club.manager_name || 'Assigned Manager'}</span>
               </div>
+              {club.charter_pdf_url && (
+                <div>
+                  <span className="text-olive/70 block text-[10px] uppercase font-bold tracking-wider">Charter Document</span>
+                  <a
+                    href={club.charter_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-blood underline-offset-2 hover:underline"
+                  >
+                    View Charter PDF ↗
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 

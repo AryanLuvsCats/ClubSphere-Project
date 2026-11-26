@@ -73,6 +73,16 @@ export default function EventsPage() {
                   <span className="editorial-label">Live telegram <span className="ml-1 text-olive">No. {String(event.event_id).padStart(3, '0')}</span></span>
                   <StatusBadge status={event.status} />
                 </div>
+                {event.poster_url && (
+                  <div className="mb-4 overflow-hidden rounded-lg border border-rose/30 bg-vanilla/30">
+                    <img
+                      src={event.poster_url}
+                      alt={`${event.title} poster`}
+                      loading="lazy"
+                      className="h-44 w-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-3">

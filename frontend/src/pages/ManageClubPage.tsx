@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { clubService } from '../services/clubService'
-import type { Club, ClubAchievement, ClubCoreMember, MembershipMember } from '../domain/types'
+import { uploadService } from '../services/uploadService'
+import type { Club, ClubAchievement, ClubCoreMember, ClubRecentEvent, MembershipMember } from '../domain/types'
 import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 import { formatDate } from '../lib/format'
 import { useToast } from '../context/ToastContext'
@@ -31,6 +32,11 @@ export default function ManageClubPage() {
 
   const [profileMotives, setProfileMotives] = useState('')
   const [profileDescription, setProfileDescription] = useState('')
+  const [profileLogoUrl, setProfileLogoUrl] = useState<string | null>(null)
+  const [profileCharterUrl, setProfileCharterUrl] = useState<string | null>(null)
+  const [profileEvents, setProfileEvents] = useState<ClubRecentEvent[]>([])
+  const [selectedEventPosterId, setSelectedEventPosterId] = useState<number | ''>('')
+  const [uploadingMedia, setUploadingMedia] = useState<string | null>(null)
   const [profileContacts, setProfileContacts] = useState<ClubCoreMember[]>([])
   const [profileAchievements, setProfileAchievements] = useState<ClubAchievement[]>([])
   const [loadingProfile, setLoadingProfile] = useState(false)
@@ -181,6 +187,10 @@ export default function ManageClubPage() {
         if (cancelled) return
         setProfileMotives(detail.motives || '')
         setProfileDescription(detail.description || '')
+        setProfileLogoUrl(detail.logo_url || null)
+        setProfileCharterUrl(detail.charter_pdf_url || null)
+        setProfileEvents(detail.recent_events || [])
+        setSelectedEventPosterId(detail.recent_events?.[0]?.event_id ?? '')
         setProfileContacts(
           detail.core_members?.length
             ? detail.core_members
@@ -221,6 +231,39 @@ export default function ManageClubPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to update club profile.')
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  const handleClubMediaUpload = async (file: File | undefined, kind: 'logo' | 'charter') => {
+    if (!file || !selectedClubId) return
+    setUploadingMedia(kind)
+    try {
+      const res = await uploadService.uploadFile(file, 'Clubs', selectedClubId, kind)
+      const mediaUrl = res.blob_url || `/api/v1/uploads/media/${res.upload_id}`
+      if (kind === 'logo') {
+        setProfileLogoUrl(mediaUrl)
+        setClubs((prev) => prev.map((c) => (c.club_id === selectedClubId ? { ...c, logo_url: mediaUrl } : c)))
+      } else {
+        setProfileCharterUrl(mediaUrl)
+      }
+      toast.success(kind === 'logo' ? 'Club logo uploaded cleanly!' : 'Official charter PDF uploaded!')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setUploadingMedia(null)
+    }
+  }
+
+  const handleEventPosterUpload = async (file: File | undefined) => {
+    if (!file || !selectedEventPosterId) return
+    setUploadingMedia('poster')
+    try {
+      await uploadService.uploadFile(file, 'Events', Number(selectedEventPosterId), 'poster')
+      toast.success('Event poster uploaded to Blob Storage!')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Event poster upload failed.')
+    } finally {
+      setUploadingMedia(null)
     }
   }
 
@@ -425,6 +468,85 @@ export default function ManageClubPage() {
                       placeholder="Brief overview summarizing the club focus..."
                       className="editorial-field w-full px-3.5 py-2.5 text-sm"
                     />
+                  </div>
+                </div>
+
+                {/* Azure Blob Storage Media & Documents */}
+                <div className="border-t border-rose/30 pt-6">
+                  <h3 className="font-serif text-base font-bold text-bean mb-1">Club Media &amp; Official Charter (Azure Blob Storage)</h3>
+                  <p className="text-xs text-olive mb-4">
+                    Upload your club crest logo, official charter PDF, or event posters. Files are persisted via Azure Blob Storage and rendered on public cards.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="rounded-xl border border-rose/30 bg-vanilla/30 p-4 space-y-2.5">
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-bean">Club Logo (PNG/JPG/WebP)</span>
+                      {profileLogoUrl && (
+                        <img
+                          src={profileLogoUrl}
+                          alt="Current club logo"
+                          className="h-16 w-16 rounded-lg border border-rose/30 bg-white object-cover"
+                        />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={uploadingMedia !== null}
+                        onChange={(e) => void handleClubMediaUpload(e.target.files?.[0], 'logo')}
+                        className="block w-full text-xs text-olive file:mr-2 file:rounded-lg file:border-0 file:bg-blood file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-bean"
+                      />
+                      {uploadingMedia === 'logo' && <p className="text-[11px] text-blood">Uploading logo…</p>}
+                    </div>
+
+                    <div className="rounded-xl border border-rose/30 bg-vanilla/30 p-4 space-y-2.5">
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-bean">Charter Document (PDF)</span>
+                      {profileCharterUrl && (
+                        <a
+                          href={profileCharterUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block text-xs font-semibold text-blood underline"
+                        >
+                          Current Charter PDF ↗
+                        </a>
+                      )}
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        disabled={uploadingMedia !== null}
+                        onChange={(e) => void handleClubMediaUpload(e.target.files?.[0], 'charter')}
+                        className="block w-full text-xs text-olive file:mr-2 file:rounded-lg file:border-0 file:bg-blood file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-bean"
+                      />
+                      {uploadingMedia === 'charter' && <p className="text-[11px] text-blood">Uploading PDF…</p>}
+                    </div>
+
+                    <div className="rounded-xl border border-rose/30 bg-vanilla/30 p-4 space-y-2.5">
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-bean">Event Poster (PNG/JPG/WebP)</span>
+                      {profileEvents.length > 0 ? (
+                        <>
+                          <select
+                            value={selectedEventPosterId}
+                            onChange={(e) => setSelectedEventPosterId(e.target.value ? Number(e.target.value) : '')}
+                            className="editorial-field w-full px-2.5 py-1.5 text-xs"
+                          >
+                            {profileEvents.map((ev) => (
+                              <option key={ev.event_id} value={ev.event_id}>
+                                {ev.title}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={uploadingMedia !== null || !selectedEventPosterId}
+                            onChange={(e) => void handleEventPosterUpload(e.target.files?.[0])}
+                            className="block w-full text-xs text-olive file:mr-2 file:rounded-lg file:border-0 file:bg-blood file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-bean"
+                          />
+                          {uploadingMedia === 'poster' && <p className="text-[11px] text-blood">Uploading poster…</p>}
+                        </>
+                      ) : (
+                        <p className="text-xs italic text-olive">No events created for this club yet.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 

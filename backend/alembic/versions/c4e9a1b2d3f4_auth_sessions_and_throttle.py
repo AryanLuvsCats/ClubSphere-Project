@@ -11,6 +11,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mssql
 
 
 # revision identifiers, used by Alembic.
@@ -20,20 +21,28 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _u(length: int):
+    return sa.String(length=length).with_variant(mssql.NVARCHAR(length), "mssql")
+
+
+def _dt():
+    return sa.DateTime().with_variant(mssql.DATETIME2(), "mssql")
+
+
 def upgrade() -> None:
     op.create_table(
         "RefreshSessions",
-        sa.Column("SessionId", sa.String(length=64), nullable=False),
+        sa.Column("SessionId", _u(64), nullable=False),
         sa.Column("UserId", sa.Integer(), nullable=False),
-        sa.Column("FamilyId", sa.String(length=64), nullable=False),
-        sa.Column("TokenHash", sa.String(length=64), nullable=False),
-        sa.Column("IssuedAt", sa.DateTime(), nullable=False),
-        sa.Column("ExpiresAt", sa.DateTime(), nullable=False),
-        sa.Column("RevokedAt", sa.DateTime(), nullable=True),
-        sa.Column("ReplacedBySessionId", sa.String(length=64), nullable=True),
-        sa.Column("ReplacedAt", sa.DateTime(), nullable=True),
-        sa.Column("IpAddress", sa.String(length=45), nullable=True),
-        sa.Column("UserAgent", sa.String(length=255), nullable=True),
+        sa.Column("FamilyId", _u(64), nullable=False),
+        sa.Column("TokenHash", _u(64), nullable=False),
+        sa.Column("IssuedAt", _dt(), nullable=False),
+        sa.Column("ExpiresAt", _dt(), nullable=False),
+        sa.Column("RevokedAt", _dt(), nullable=True),
+        sa.Column("ReplacedBySessionId", _u(64), nullable=True),
+        sa.Column("ReplacedAt", _dt(), nullable=True),
+        sa.Column("IpAddress", _u(45), nullable=True),
+        sa.Column("UserAgent", _u(255), nullable=True),
         sa.ForeignKeyConstraint(["UserId"], ["Users.UserId"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("SessionId"),
     )
@@ -76,13 +85,13 @@ def upgrade() -> None:
 
     op.create_table(
         "AuthThrottle",
-        sa.Column("ThrottleId", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("Scope", sa.String(length=32), nullable=False),
-        sa.Column("KeyHash", sa.String(length=64), nullable=False),
+        sa.Column("ThrottleId", sa.Integer(), sa.Identity(start=1, increment=1), autoincrement=True, nullable=False),
+        sa.Column("Scope", _u(32), nullable=False),
+        sa.Column("KeyHash", _u(64), nullable=False),
         sa.Column("FailureCount", sa.Integer(), nullable=False),
-        sa.Column("WindowStartedAt", sa.DateTime(), nullable=False),
-        sa.Column("BlockedUntil", sa.DateTime(), nullable=True),
-        sa.Column("UpdatedAt", sa.DateTime(), nullable=False),
+        sa.Column("WindowStartedAt", _dt(), nullable=False),
+        sa.Column("BlockedUntil", _dt(), nullable=True),
+        sa.Column("UpdatedAt", _dt(), nullable=False),
         sa.PrimaryKeyConstraint("ThrottleId"),
         sa.UniqueConstraint(
             "Scope",

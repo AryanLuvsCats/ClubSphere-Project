@@ -42,8 +42,9 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install dependencies
+      - name: Install system ODBC headers and Python dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends unixodbc-dev
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -54,10 +55,11 @@ jobs:
         run: |
           python -m pytest
 
-      - name: Verify Alembic migrations (heads and SQL dry-run)
+      - name: Verify Alembic migrations (heads, T-SQL & PostgreSQL dry-runs)
         run: |
-          python -m alembic heads
-          python -m alembic upgrade head --sql
+          ENVIRONMENT=development DATABASE_URL="mssql+pyodbc://ci:ci@localhost:1433/clubsphere?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no" python -m alembic heads
+          ENVIRONMENT=development DATABASE_URL="mssql+pyodbc://ci:ci@localhost:1433/clubsphere?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no" python -m alembic upgrade head --sql > /dev/null
+          ENVIRONMENT=development DATABASE_URL="postgresql+psycopg://ci:ci@localhost:5432/neondb?sslmode=require" python -m alembic upgrade head --sql > /dev/null
 
   frontend-check:
     name: Frontend Lint & Production Build

@@ -24,13 +24,18 @@ SENSITIVE_PATTERNS = [
         re.compile(r"(clubsphere_refresh=)[^;\s]+", re.IGNORECASE),
         r"\1[REDACTED]",
     ),
-    # Database URLs containing passwords
+    # Database URLs containing passwords (PostgreSQL & Azure SQL / MSSQL)
     (
         re.compile(
-            r"(postgres(?:ql)?(?:\+[a-z0-9]+)?://[^:]+:)([^@]+)(@)",
+            r"((?:postgres(?:ql)?|mssql)(?:\+[a-z0-9]+)?://[^:]+:)([^@]+)(@)",
             re.IGNORECASE,
         ),
         r"\1[REDACTED]\3",
+    ),
+    # ODBC PWD=... and Azure Storage AccountKey=... secrets
+    (
+        re.compile(r"((?:PWD|AccountKey)\s*=\s*)([^;\r\n]+)", re.IGNORECASE),
+        r"\1[REDACTED]",
     ),
     # Secret keys in configs
     (

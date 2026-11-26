@@ -3,13 +3,14 @@ from typing import List, Optional
 
 from pydantic import Field, field_validator, model_validator
 
-from app.schemas.common import StrictRequestModel
+from app.schemas.common import StrictRequestModel, validate_safe_media_url
 
 
 class EventCreateRequest(StrictRequestModel):
     club_id: int = Field(..., gt=0)
     title: str = Field(..., min_length=2, max_length=200)
     venue_text: Optional[str] = Field(default=None, max_length=200)
+    poster_url: Optional[str] = Field(default=None, max_length=500)
     event_date: datetime
     registration_deadline: datetime
     capacity: int = Field(
@@ -23,6 +24,11 @@ class EventCreateRequest(StrictRequestModel):
         pattern="^(draft|published|completed|cancelled)$",
     )
 
+    @field_validator("poster_url")
+    @classmethod
+    def check_poster_url(cls, v: Optional[str]) -> Optional[str]:
+        return validate_safe_media_url(v)
+
     @model_validator(mode="after")
     def validate_deadline_before_event(self) -> "EventCreateRequest":
         if self.registration_deadline > self.event_date:
@@ -33,6 +39,7 @@ class EventCreateRequest(StrictRequestModel):
 class EventUpdateRequest(StrictRequestModel):
     title: Optional[str] = Field(default=None, min_length=2, max_length=200)
     venue_text: Optional[str] = Field(default=None, max_length=200)
+    poster_url: Optional[str] = Field(default=None, max_length=500)
     event_date: Optional[datetime] = None
     registration_deadline: Optional[datetime] = None
     capacity: Optional[int] = Field(default=None, gt=0, le=100000)
@@ -40,6 +47,11 @@ class EventUpdateRequest(StrictRequestModel):
         default=None,
         pattern="^(draft|published|completed|cancelled)$",
     )
+
+    @field_validator("poster_url")
+    @classmethod
+    def check_poster_url(cls, v: Optional[str]) -> Optional[str]:
+        return validate_safe_media_url(v)
 
     @model_validator(mode="after")
     def validate_dates(self) -> "EventUpdateRequest":
@@ -55,6 +67,7 @@ class EventResponse(StrictRequestModel):
     club_name: Optional[str] = None
     title: str
     venue_text: Optional[str] = None
+    poster_url: Optional[str] = None
     event_date: datetime
     registration_deadline: datetime
     capacity: int

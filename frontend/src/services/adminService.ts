@@ -1,9 +1,18 @@
 import { api } from './apiClient'
-import type { AnalyticsOverview, AuditLog, Paginated } from '../domain/types'
+import type {
+  AnalyticsExportResult,
+  AnalyticsOverview,
+  AuditLog,
+  Paginated,
+} from '../domain/types'
 
 export const adminService = {
   async getAnalyticsOverview(): Promise<AnalyticsOverview> {
-    return api.get<AnalyticsOverview>('/admin/analytics/overview')
+    return api.get<AnalyticsOverview>('/analytics/overview')
+  },
+
+  async exportAnalyticsSnapshot(): Promise<AnalyticsExportResult> {
+    return api.post<AnalyticsExportResult>('/analytics/export')
   },
 
   async getAuditLogs(params: { page?: number; page_size?: number } = {}): Promise<Paginated<AuditLog>> {

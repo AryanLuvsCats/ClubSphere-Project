@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mssql
 
 
 # revision identifiers, used by Alembic.
@@ -20,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("Clubs", sa.Column("Motives", sa.Text(), nullable=True))
+    op.add_column("Clubs", sa.Column("Motives", sa.Text().with_variant(mssql.NVARCHAR(None), "mssql"), nullable=True))
     op.add_column("Clubs", sa.Column("PastAchievements", sa.JSON(), nullable=True))
     op.add_column("Clubs", sa.Column("LeadershipContacts", sa.JSON(), nullable=True))
 

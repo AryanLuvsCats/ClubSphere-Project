@@ -8,7 +8,7 @@ from app.core.authorization import (
     can_view_proposal,
     branch_id_for_user,
 )
-from app.core.database import get_db
+from app.core.database import get_db, case_insensitive_equals
 from app.core.rbac import (
     get_current_active_user,
     require_roles,
@@ -76,7 +76,7 @@ def submit_club_proposal(
 ):
     """Submit a new university club proposal for Faculty and HOD review."""
     # Check duplicate active club name
-    existing_club = db.query(Club).filter(Club.Name.ilike(payload.proposed_name.strip())).first()
+    existing_club = db.query(Club).filter(case_insensitive_equals(Club.Name, payload.proposed_name.strip())).first()
     if existing_club:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -85,7 +85,7 @@ def submit_club_proposal(
 
     # Check pending duplicate proposal
     existing_prop = db.query(ClubProposal).filter(
-        ClubProposal.ProposedName.ilike(payload.proposed_name.strip()),
+        case_insensitive_equals(ClubProposal.ProposedName, payload.proposed_name.strip()),
         ClubProposal.Status.in_(["submitted", "changes_requested"])
     ).first()
     if existing_prop:
@@ -268,7 +268,7 @@ def review_proposal(
             action_name = "PROPOSAL_HOD_APPROVED_AND_ACTIVATED"
 
             # Check duplicate before creating club
-            existing_club = db.query(Club).filter(Club.Name.ilike(proposal.ProposedName.strip())).first()
+            existing_club = db.query(Club).filter(case_insensitive_equals(Club.Name, proposal.ProposedName.strip())).first()
             if not existing_club:
                 new_club = Club(
                     Name=proposal.ProposedName.strip(),

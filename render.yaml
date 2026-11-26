@@ -44,13 +44,21 @@ services:
       - key: AUTO_CREATE_SCHEMA
         value: 'false'
 
-      # Neon connection strings are secrets: supplied in the Render Dashboard.
+      # Database connection strings are secrets supplied in the Render Dashboard (no plaintext passwords in Git).
+      # Supports Azure SQL Database (mssql+pyodbc://clubsphereadmin:<URL_ENCODED_PASSWORD>@clubsphere-sql-srv.database.windows.net:1433/clubspheredb?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no)
+      # and Neon PostgreSQL (postgresql://...).
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_UNPOOLED
         sync: false
       - key: NEON_BRANCH
         value: production
+      - key: AZURE_SQL_DRIVER
+        value: ODBC Driver 18 for SQL Server
+      - key: AZURE_SQL_ENCRYPT
+        value: 'yes'
+      - key: AZURE_SQL_TRUST_SERVER_CERTIFICATE
+        value: 'no'
 
       # Render generates a random 256-bit value and keeps it across deploys.
       - key: JWT_SECRET_KEY
@@ -87,7 +95,7 @@ services:
       - key: AZURE_STORAGE_CONNECTION_STRING
         sync: false
       - key: AZURE_STORAGE_CONTAINER_NAME
-        value: clubsphere-uploads
+        value: clubsphere-media
       - key: AZURE_STORAGE_USE_EMULATOR
         value: 'false'
       - key: LOCAL_UPLOAD_DIR

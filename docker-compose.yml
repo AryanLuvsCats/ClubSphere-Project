@@ -20,7 +20,7 @@ services:
       - DEBUG=true
       # Required: the app refuses to start without a remote database URL, so
       # user data can never be written to a local SQLite file.
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set to the Neon connection string}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set to the Azure SQL connection string}
       - JWT_SECRET_KEY=dev_secret_key_clubsphere_super_secure_32_chars!
       - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
     volumes:

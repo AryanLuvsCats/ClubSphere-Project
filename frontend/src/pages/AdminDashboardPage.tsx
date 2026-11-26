@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useAdminDashboard } from '../hooks/useAdminDashboard'
+import { adminService } from '../services/adminService'
 import { formatDate } from '../lib/format'
 import { PROPOSAL_STATUS_TABS } from '../domain/constants'
 import { isFacultyReviewer } from '../domain/permissions'
+import type { AnalyticsExportResult } from '../domain/types'
 import {
   EmptyState,
   ErrorNote,
@@ -39,6 +42,10 @@ export default function AdminDashboardPage() {
     handleReview,
   } = useAdminDashboard(user)
 
+  const [exportingSnapshot, setExportingSnapshot] = useState(false)
+  const [exportResult, setExportResult] = useState<AnalyticsExportResult | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+
   if (!allowedReview) {
     return (
       <div>
@@ -54,6 +61,19 @@ export default function AdminDashboardPage() {
   const attendanceRate = overview ? Math.round(overview.avg_attendance_rate * 100) : 0
   const isFaculty = isFacultyReviewer(user)
 
+  const handleExportSnapshot = async () => {
+    setExportingSnapshot(true)
+    setExportError(null)
+    try {
+      const result = await adminService.exportAnalyticsSnapshot()
+      setExportResult(result)
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Failed to export analytics snapshot.')
+    } finally {
+      setExportingSnapshot(false)
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -68,6 +88,27 @@ export default function AdminDashboardPage() {
 
       {allowedAnalytics && (
         <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-olive">
+              Backed by Azure SQL Database (<code className="text-blood">vw_club_analytics_summary</code>) &amp; Azure Blob JSON snapshots.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleExportSnapshot()}
+              disabled={exportingSnapshot || loadingAnalytics}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-blood/40 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-blood transition hover:bg-blood hover:text-white disabled:opacity-50 cursor-pointer"
+            >
+              {exportingSnapshot ? 'Exporting JSON…' : 'Export JSON to Blob Storage ↗'}
+            </button>
+          </div>
+          {exportError && <div className="mb-4"><ErrorNote message={exportError} /></div>}
+          {exportResult && (
+            <div className="mb-4">
+              <SuccessNote
+                message={`Snapshot saved (${exportResult.storage_backend}) -> container "${exportResult.container}" at "${exportResult.blob_path}" (${exportResult.size_bytes} bytes).`}
+              />
+            </div>
+          )}
           {loadingAnalytics && <Spinner label="Loading analytics" />}
           {analyticsError && <ErrorNote message={analyticsError} />}
 
@@ -245,6 +286,43 @@ export default function AdminDashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {overview.club_summaries && overview.club_summaries.length > 0 && (
+            <div className="mt-8">
+              <p className="editorial-label">Power BI reporting view (vw_club_analytics_summary)</p>
+              <h3 className="mt-1 text-2xl font-semibold text-bean">Club activity breakdown</h3>
+              <div className="editorial-table mt-3 overflow-x-auto border border-rose/30 shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-vanilla/20 text-xs uppercase tracking-wider text-olive">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Club</th>
+                      <th className="px-4 py-3 font-semibold">Branch</th>
+                      <th className="px-4 py-3 font-semibold">Active Members</th>
+                      <th className="px-4 py-3 font-semibold">Pending Requests</th>
+                      <th className="px-4 py-3 font-semibold">Leaders</th>
+                      <th className="px-4 py-3 font-semibold">Events</th>
+                      <th className="px-4 py-3 font-semibold">Registrations</th>
+                      <th className="px-4 py-3 font-semibold">Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rose/20">
+                    {overview.club_summaries.map((club) => (
+                      <tr key={club.club_id} className="bg-white hover:bg-vanilla/10 transition">
+                        <td className="px-4 py-3 font-medium text-bean">{club.club_name}</td>
+                        <td className="px-4 py-3 text-olive">{club.branch_name}</td>
+                        <td className="px-4 py-3 text-bean">{club.active_members}</td>
+                        <td className="px-4 py-3 text-bean">{club.pending_members}</td>
+                        <td className="px-4 py-3 text-bean">{club.leadership_count ?? 0}</td>
+                        <td className="px-4 py-3 text-bean">{club.total_events}</td>
+                        <td className="px-4 py-3 text-bean">{club.confirmed_registrations}</td>
+                        <td className="px-4 py-3 text-bean">{club.total_attendance}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </section>

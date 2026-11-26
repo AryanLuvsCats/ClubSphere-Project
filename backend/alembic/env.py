@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
-from app.core.database import Base
+from app.db.session import Base, normalize_sync_database_url
 import app.models.models  # noqa: F401  (register every model on Base.metadata)
 
 config = context.config
@@ -12,12 +12,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Prefer the direct (unpooled) endpoint for migrations: DDL through a
-# transaction pooler is fragile. Fall back to the pooled URL when unset.
-migration_url = settings.DATABASE_URL_UNPOOLED or settings.DATABASE_URL
+# Prefer the direct (unpooled) endpoint for migrations and convert async drivers
+# (e.g. mssql+aioodbc) into synchronous pyodbc for Alembic DDL execution.
+raw_migration_url = settings.DATABASE_URL_UNPOOLED or settings.DATABASE_URL
+migration_url = normalize_sync_database_url(raw_migration_url)
 
-# Escape "%" so configparser interpolation does not break on URL-encoded
-# passwords (Neon passwords may contain them).
+# Escape "%" so configparser interpolation does not break on URL-encoded passwords.
 config.set_main_option("sqlalchemy.url", migration_url.replace("%", "%%"))
 
 target_metadata = Base.metadata

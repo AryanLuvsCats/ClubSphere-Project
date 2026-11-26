@@ -1,24 +1,31 @@
 import enum
 from datetime import datetime, timezone
+
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
     Boolean,
-    DateTime,
-    ForeignKey,
-    UniqueConstraint,
     CheckConstraint,
+    Column,
+    ForeignKey,
+    Identity,
     Index,
-    JSON,
+    Integer,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+
+from app.db.session import Base
+from app.models.types import (
+    TSQLDateTime,
+    TSQLJson,
+    TSQLText,
+    TSQLUnicode,
+    utcnow_sql,
+)
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    """Return naive UTC timestamp compatible with T-SQL DATETIME2, PostgreSQL, and SQLite."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class RoleNameEnum(str, enum.Enum):
@@ -37,13 +44,10 @@ class Branch(Base):
 
     __tablename__ = "Branches"
 
-    BranchId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    # Stable string id from the JSON source, e.g. 'btech'.
-    BranchKey = Column(String(50), unique=True, nullable=False)
-    Name = Column(String(150), unique=True, nullable=False)
-    # 'undergraduate' | 'postgraduate' | 'doctoral'
-    DegreeLevel = Column(String(50), nullable=False)
-    # Controls presentation order in the UI dropdowns.
+    BranchId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    BranchKey = Column(TSQLUnicode(50), unique=True, nullable=False)
+    Name = Column(TSQLUnicode(150), unique=True, nullable=False)
+    DegreeLevel = Column(TSQLUnicode(50), nullable=False)
     SortOrder = Column(Integer, nullable=False, default=0)
 
     programs = relationship("Program", back_populates="branch")
@@ -57,15 +61,12 @@ class Program(Base):
 
     __tablename__ = "Programs"
 
-    ProgramId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    # Stable string id from the JSON source, e.g. 'btech_aiml'.
-    ProgramKey = Column(String(100), unique=True, nullable=False)
+    ProgramId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    ProgramKey = Column(TSQLUnicode(100), unique=True, nullable=False)
     BranchId = Column(Integer, ForeignKey("Branches.BranchId"), nullable=False, index=True)
-    Name = Column(String(150), nullable=False)
-    # Human-readable label shown in the UI, e.g. 'B.Tech - AI/ML'.
-    FullName = Column(String(255), nullable=False)
-    # Optional industry partner, e.g. 'Microsoft', 'Google', 'IBM'.
-    CollaborationPartner = Column(String(150), nullable=True)
+    Name = Column(TSQLUnicode(150), nullable=False)
+    FullName = Column(TSQLUnicode(255), nullable=False)
+    CollaborationPartner = Column(TSQLUnicode(150), nullable=True)
     SortOrder = Column(Integer, nullable=False, default=0)
 
     branch = relationship("Branch", back_populates="programs", lazy="joined")
@@ -77,8 +78,8 @@ class Program(Base):
 class Role(Base):
     __tablename__ = "Roles"
 
-    RoleId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    RoleName = Column(String(30), unique=True, nullable=False)
+    RoleId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    RoleName = Column(TSQLUnicode(30), unique=True, nullable=False)
 
     users = relationship("User", back_populates="role")
 
@@ -86,15 +87,15 @@ class Role(Base):
 class User(Base):
     __tablename__ = "Users"
 
-    UserId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    Email = Column(String(256), unique=True, nullable=False, index=True)
-    PasswordHash = Column(String(256), nullable=False)
-    FullName = Column(String(150), nullable=False)
+    UserId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    Email = Column(TSQLUnicode(256), unique=True, nullable=False, index=True)
+    PasswordHash = Column(TSQLUnicode(256), nullable=False)
+    FullName = Column(TSQLUnicode(150), nullable=False)
     RoleId = Column(Integer, ForeignKey("Roles.RoleId"), nullable=False)
     ProgramId = Column(Integer, ForeignKey("Programs.ProgramId"), nullable=True)
     IsActive = Column(Boolean, nullable=False, default=True)
     TokenVersion = Column(Integer, nullable=False, default=1)
-    CreatedAt = Column(DateTime, nullable=False, default=utc_now)
+    CreatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     role = relationship("Role", back_populates="users", lazy="joined")
     program = relationship("Program", back_populates="users", lazy="joined")
@@ -109,16 +110,18 @@ class User(Base):
 class Club(Base):
     __tablename__ = "Clubs"
 
-    ClubId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    Name = Column(String(150), unique=True, nullable=False, index=True)
+    ClubId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    Name = Column(TSQLUnicode(150), unique=True, nullable=False, index=True)
     ProgramId = Column(Integer, ForeignKey("Programs.ProgramId"), nullable=False)
     ManagerUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Description = Column(Text, nullable=True)
-    Motives = Column(Text, nullable=True)
-    PastAchievements = Column(JSON, nullable=True, default=list)
-    LeadershipContacts = Column(JSON, nullable=True, default=list)
-    Status = Column(String(20), nullable=False, default="pending")
-    CreatedAt = Column(DateTime, nullable=False, default=utc_now)
+    Description = Column(TSQLText, nullable=True)
+    Motives = Column(TSQLText, nullable=True)
+    PastAchievements = Column(TSQLJson, nullable=True, default=list)
+    LeadershipContacts = Column(TSQLJson, nullable=True, default=list)
+    LogoUrl = Column(TSQLUnicode(500), nullable=True)
+    CharterPdfUrl = Column(TSQLUnicode(500), nullable=True)
+    Status = Column(TSQLUnicode(20), nullable=False, default="pending")
+    CreatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         CheckConstraint('"Status" IN (\'pending\', \'active\', \'suspended\')', name="CK_Clubs_Status"),
@@ -133,12 +136,12 @@ class Club(Base):
 class ClubMembership(Base):
     __tablename__ = "ClubMemberships"
 
-    MembershipId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    MembershipId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     ClubId = Column(Integer, ForeignKey("Clubs.ClubId", ondelete="CASCADE"), nullable=False)
     UserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Status = Column(String(20), nullable=False, default="requested")
-    Role = Column(String(30), nullable=False, default="Member")  # 'Member' or 'Lead'
-    JoinedAt = Column(DateTime, nullable=False, default=utc_now)
+    Status = Column(TSQLUnicode(20), nullable=False, default="requested")
+    Role = Column(TSQLUnicode(30), nullable=False, default="Member")
+    JoinedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         UniqueConstraint("ClubId", "UserId", name="UQ_Club_User"),
@@ -152,14 +155,15 @@ class ClubMembership(Base):
 class Event(Base):
     __tablename__ = "Events"
 
-    EventId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    EventId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     ClubId = Column(Integer, ForeignKey("Clubs.ClubId", ondelete="CASCADE"), nullable=False)
-    Title = Column(String(200), nullable=False)
-    VenueText = Column(String(200), nullable=True)
-    EventDate = Column(DateTime, nullable=False)
-    RegistrationDeadline = Column(DateTime, nullable=False)
+    Title = Column(TSQLUnicode(200), nullable=False)
+    VenueText = Column(TSQLUnicode(200), nullable=True)
+    PosterUrl = Column(TSQLUnicode(500), nullable=True)
+    EventDate = Column(TSQLDateTime, nullable=False)
+    RegistrationDeadline = Column(TSQLDateTime, nullable=False)
     Capacity = Column(Integer, nullable=False)
-    Status = Column(String(20), nullable=False, default="draft")
+    Status = Column(TSQLUnicode(20), nullable=False, default="draft")
     CreatedByUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
 
     __table_args__ = (
@@ -179,11 +183,11 @@ class Event(Base):
 class EventRegistration(Base):
     __tablename__ = "EventRegistrations"
 
-    RegistrationId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    RegistrationId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     EventId = Column(Integer, ForeignKey("Events.EventId", ondelete="CASCADE"), nullable=False)
     UserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Status = Column(String(20), nullable=False, default="confirmed")
-    RegisteredAt = Column(DateTime, nullable=False, default=utc_now)
+    Status = Column(TSQLUnicode(20), nullable=False, default="confirmed")
+    RegisteredAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         UniqueConstraint("EventId", "UserId", name="UQ_Event_User_Reg"),
@@ -198,10 +202,10 @@ class EventRegistration(Base):
 class Attendance(Base):
     __tablename__ = "Attendance"
 
-    AttendanceId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    AttendanceId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     EventId = Column(Integer, ForeignKey("Events.EventId", ondelete="CASCADE"), nullable=False)
     UserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    CheckedInAt = Column(DateTime, nullable=False, default=utc_now)
+    CheckedInAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
     RecordedByUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
 
     __table_args__ = (
@@ -216,13 +220,13 @@ class Attendance(Base):
 class ClubProposal(Base):
     __tablename__ = "ClubProposals"
 
-    ProposalId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ProposalId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     ApplicantUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    ProposedName = Column(String(150), nullable=False)
+    ProposedName = Column(TSQLUnicode(150), nullable=False)
     ProgramId = Column(Integer, ForeignKey("Programs.ProgramId"), nullable=False)
-    Description = Column(Text, nullable=False)
-    Status = Column(String(20), nullable=False, default="submitted")
-    SubmittedAt = Column(DateTime, nullable=False, default=utc_now)
+    Description = Column(TSQLText, nullable=False)
+    Status = Column(TSQLUnicode(20), nullable=False, default="submitted")
+    SubmittedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         CheckConstraint('"Status" IN (\'submitted\', \'changes_requested\', \'approved\', \'rejected\')', name="CK_ClubProposals_Status"),
@@ -236,13 +240,13 @@ class ClubProposal(Base):
 class Approval(Base):
     __tablename__ = "Approvals"
 
-    ApprovalId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ApprovalId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     ProposalId = Column(Integer, ForeignKey("ClubProposals.ProposalId", ondelete="CASCADE"), nullable=False)
     ReviewerUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Stage = Column(String(20), nullable=False)
-    Decision = Column(String(20), nullable=False)
-    Comment = Column(Text, nullable=True)
-    DecidedAt = Column(DateTime, nullable=False, default=utc_now)
+    Stage = Column(TSQLUnicode(20), nullable=False)
+    Decision = Column(TSQLUnicode(20), nullable=False)
+    Comment = Column(TSQLText, nullable=True)
+    DecidedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         CheckConstraint('"Stage" IN (\'faculty\', \'hod\')', name="CK_Approvals_Stage"),
@@ -256,12 +260,12 @@ class Approval(Base):
 class EventOutcome(Base):
     __tablename__ = "EventOutcomes"
 
-    OutcomeId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    OutcomeId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     EventId = Column(Integer, ForeignKey("Events.EventId", ondelete="CASCADE"), unique=True, nullable=False)
-    Summary = Column(Text, nullable=True)
+    Summary = Column(TSQLText, nullable=True)
     AttendanceCountSnapshot = Column(Integer, nullable=False, default=0)
     SubmittedByUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    SubmittedAt = Column(DateTime, nullable=False, default=utc_now)
+    SubmittedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     event = relationship("Event", back_populates="outcome")
     submitted_by = relationship("User")
@@ -270,12 +274,12 @@ class EventOutcome(Base):
 class Notification(Base):
     __tablename__ = "Notifications"
 
-    NotificationId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    NotificationId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     UserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Type = Column(String(50), nullable=False)
-    Message = Column(String(500), nullable=False)
+    Type = Column(TSQLUnicode(50), nullable=False)
+    Message = Column(TSQLUnicode(500), nullable=False)
     IsRead = Column(Boolean, nullable=False, default=False)
-    CreatedAt = Column(DateTime, nullable=False, default=utc_now)
+    CreatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         Index("IX_Notif_UserId_IsRead", "UserId", "IsRead"),
@@ -287,13 +291,13 @@ class Notification(Base):
 class AuditLog(Base):
     __tablename__ = "AuditLogs"
 
-    AuditLogId = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    AuditLogId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
     ActorUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    Action = Column(String(100), nullable=False)
-    EntityType = Column(String(50), nullable=False)
+    Action = Column(TSQLUnicode(100), nullable=False)
+    EntityType = Column(TSQLUnicode(50), nullable=False)
     EntityId = Column(Integer, nullable=False)
-    Details = Column(Text, nullable=True)
-    CreatedAt = Column(DateTime, nullable=False, default=utc_now)
+    Details = Column(TSQLText, nullable=True)
+    CreatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         Index("IX_Audit_Entity", "EntityType", "EntityId"),
@@ -311,22 +315,22 @@ class RefreshSession(Base):
 
     __tablename__ = "RefreshSessions"
 
-    SessionId = Column(String(64), primary_key=True, index=True)
+    SessionId = Column(TSQLUnicode(64), primary_key=True, index=True)
     UserId = Column(
         Integer,
         ForeignKey("Users.UserId", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    FamilyId = Column(String(64), nullable=False, index=True)
-    TokenHash = Column(String(64), unique=True, nullable=False, index=True)
-    IssuedAt = Column(DateTime, nullable=False, default=utc_now)
-    ExpiresAt = Column(DateTime, nullable=False)
-    RevokedAt = Column(DateTime, nullable=True)
-    ReplacedBySessionId = Column(String(64), nullable=True)
-    ReplacedAt = Column(DateTime, nullable=True)
-    IpAddress = Column(String(45), nullable=True)
-    UserAgent = Column(String(255), nullable=True)
+    FamilyId = Column(TSQLUnicode(64), nullable=False, index=True)
+    TokenHash = Column(TSQLUnicode(64), unique=True, nullable=False, index=True)
+    IssuedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
+    ExpiresAt = Column(TSQLDateTime, nullable=False)
+    RevokedAt = Column(TSQLDateTime, nullable=True)
+    ReplacedBySessionId = Column(TSQLUnicode(64), nullable=True)
+    ReplacedAt = Column(TSQLDateTime, nullable=True)
+    IpAddress = Column(TSQLUnicode(45), nullable=True)
+    UserAgent = Column(TSQLUnicode(255), nullable=True)
 
     __table_args__ = (
         Index("IX_RefreshSessions_UserId_FamilyId", "UserId", "FamilyId"),
@@ -341,13 +345,13 @@ class AuthThrottle(Base):
 
     __tablename__ = "AuthThrottle"
 
-    ThrottleId = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    Scope = Column(String(32), nullable=False)
-    KeyHash = Column(String(64), nullable=False)
+    ThrottleId = Column(Integer, Identity(start=1, increment=1), primary_key=True, index=True)
+    Scope = Column(TSQLUnicode(32), nullable=False)
+    KeyHash = Column(TSQLUnicode(64), nullable=False)
     FailureCount = Column(Integer, nullable=False, default=0)
-    WindowStartedAt = Column(DateTime, nullable=False, default=utc_now)
-    BlockedUntil = Column(DateTime, nullable=True)
-    UpdatedAt = Column(DateTime, nullable=False, default=utc_now)
+    WindowStartedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
+    BlockedUntil = Column(TSQLDateTime, nullable=True)
+    UpdatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     __table_args__ = (
         UniqueConstraint("Scope", "KeyHash", name="UQ_AuthThrottle_Scope_Key"),
@@ -358,14 +362,14 @@ class AuthThrottle(Base):
 class UploadedFile(Base):
     __tablename__ = "UploadedFiles"
 
-    FileId = Column(String(64), primary_key=True, index=True)
+    FileId = Column(TSQLUnicode(64), primary_key=True, index=True)
     OwnerUserId = Column(Integer, ForeignKey("Users.UserId"), nullable=False)
-    EntityType = Column(String(50), nullable=False)
+    EntityType = Column(TSQLUnicode(50), nullable=False)
     EntityId = Column(Integer, nullable=False)
-    OriginalFilename = Column(String(255), nullable=False)
-    BlobPath = Column(String(500), nullable=False)
-    MimeType = Column(String(100), nullable=False)
+    OriginalFilename = Column(TSQLUnicode(255), nullable=False)
+    BlobPath = Column(TSQLUnicode(500), nullable=False)
+    MimeType = Column(TSQLUnicode(100), nullable=False)
     FileSizeBytes = Column(Integer, nullable=False)
-    CreatedAt = Column(DateTime, nullable=False, default=utc_now)
+    CreatedAt = Column(TSQLDateTime, nullable=False, default=utc_now, server_default=utcnow_sql())
 
     owner = relationship("User")

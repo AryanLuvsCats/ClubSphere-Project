@@ -1,12 +1,17 @@
 from typing import Literal, Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.authorization import can_view_club, is_admin, role_name
-from app.core.database import get_db, escape_like
+from app.core.database import (
+    case_insensitive_equals,
+    case_insensitive_like,
+    escape_like,
+    get_db,
+)
 from app.core.rbac import (
     check_club_ownership,
     get_current_active_user,
@@ -44,6 +49,8 @@ from app.schemas.club import (
     ClubUpcomingEvent,
     ClubPublicProfileResponse,
 )
+from app.schemas.upload import UploadResponse
+from app.api.v1.uploads import process_entity_upload
 
 router = APIRouter(prefix="/clubs", tags=["Clubs & Memberships"])
 
@@ -84,8 +91,8 @@ def list_clubs(
     if search:
         search_fmt = f"%{escape_like(search)}%"
         query = query.filter(
-            Club.Name.ilike(search_fmt, escape="\\")
-            | Club.Description.ilike(search_fmt, escape="\\")
+            case_insensitive_like(Club.Name, search_fmt)
+            | case_insensitive_like(Club.Description, search_fmt)
         )
 
     total = query.count()
@@ -121,6 +128,8 @@ def list_clubs(
                 manager_user_id=c.ManagerUserId,
                 manager_name=c.manager.FullName if c.manager else None,
                 description=c.Description,
+                logo_url=c.LogoUrl,
+                charter_pdf_url=c.CharterPdfUrl,
                 status=c.Status,
                 created_at=c.CreatedAt,
                 member_count=member_cnt,
@@ -252,6 +261,8 @@ def _build_club_detail_response(club: Club, db: Session, member_cnt: int) -> Clu
         manager_user_id=club.ManagerUserId,
         manager_name=club.manager.FullName if club.manager else None,
         description=club.Description,
+        logo_url=club.LogoUrl,
+        charter_pdf_url=club.CharterPdfUrl,
         status=club.Status,
         created_at=club.CreatedAt,
         member_count=member_cnt,
@@ -346,6 +357,8 @@ def get_club_public_profile(
         manager_user_id=club.ManagerUserId,
         manager_name=club.manager.FullName if club.manager else None,
         description=club.Description,
+        logo_url=club.LogoUrl,
+        charter_pdf_url=club.CharterPdfUrl,
         status=club.Status,
         created_at=club.CreatedAt,
         member_count=member_count,
@@ -374,7 +387,7 @@ def create_club_admin_override(
     db: Session = Depends(get_db),
 ):
     """Directly create an active club (Administrator override; regular flow is via proposals)."""
-    existing = db.query(Club).filter(Club.Name.ilike(payload.name.strip())).first()
+    existing = db.query(Club).filter(case_insensitive_equals(Club.Name, payload.name.strip())).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -400,6 +413,8 @@ def create_club_admin_override(
         ProgramId=payload.program_id,
         ManagerUserId=payload.manager_user_id,
         Description=payload.description,
+        LogoUrl=payload.logo_url,
+        CharterPdfUrl=payload.charter_pdf_url,
         Status=payload.status,
     )
     db.add(new_club)
@@ -437,6 +452,8 @@ def create_club_admin_override(
         manager_user_id=new_club.ManagerUserId,
         manager_name=mgr.FullName,
         description=new_club.Description,
+        logo_url=new_club.LogoUrl,
+        charter_pdf_url=new_club.CharterPdfUrl,
         status=new_club.Status,
         created_at=new_club.CreatedAt,
         member_count=1,
@@ -455,7 +472,7 @@ def update_club(
 
     if payload.name and payload.name.strip() != club.Name:
         duplicate = db.query(Club).filter(
-            Club.Name.ilike(payload.name.strip()),
+            case_insensitive_equals(Club.Name, payload.name.strip()),
             Club.ClubId != club_id
         ).first()
         if duplicate:
@@ -470,6 +487,12 @@ def update_club(
 
     if payload.motives is not None:
         club.Motives = payload.motives
+
+    if payload.logo_url is not None:
+        club.LogoUrl = payload.logo_url
+
+    if payload.charter_pdf_url is not None:
+        club.CharterPdfUrl = payload.charter_pdf_url
 
     if payload.past_achievements is not None:
         club.PastAchievements = [a.model_dump() for a in payload.past_achievements]
@@ -703,4 +726,32 @@ def update_membership_status(
         status=membership.Status,
         role=membership.Role,
         joined_at=membership.JoinedAt,
+    )
+
+
+@router.post("/{club_id}/media", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_club_media(
+    club_id: int,
+    file: UploadFile = File(...),
+    media_kind: Optional[str] = Form(
+        default=None,
+        description="Optional kind: logo (image) or charter (PDF)",
+    ),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a club logo image or official charter PDF to Azure Blob Storage."""
+    return await process_entity_upload(
+        file=file,
+        entity_type="Clubs",
+        entity_id=club_id,
+        media_kind=media_kind,
+        current_user=current_user,
+        db=db,
+        allowed_mime_override={
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+        },
     )

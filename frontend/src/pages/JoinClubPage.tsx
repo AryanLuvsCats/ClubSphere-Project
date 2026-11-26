@@ -84,7 +84,17 @@ export default function JoinClubPage() {
                 </div>
                 <div className="flex h-full flex-col justify-between gap-4 sm:flex-row sm:items-end">
                   <div className="min-w-0">
-                    <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
+                    <div className="flex items-center gap-3">
+                      {club.logo_url && (
+                        <img
+                          src={club.logo_url}
+                          alt={`${club.name} logo`}
+                          loading="lazy"
+                          className="h-11 w-11 shrink-0 rounded-lg border border-rose/30 bg-vanilla/40 object-cover"
+                        />
+                      )}
+                      <h2 className="text-2xl font-semibold leading-tight text-bean">{club.name}</h2>
+                    </div>
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blood">
                       {club.program_name ?? 'Unassigned program'}
                     </p>

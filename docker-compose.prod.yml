@@ -4,7 +4,7 @@
 # Production architecture:
 #   - Frontend: Multi-stage Nginx container serving React SPA & reverse proxying /api/ and /health
 #   - Backend: Hardened non-root FastAPI/Uvicorn container running Alembic migrations at startup
-#   - Database: Hosted on a dedicated Neon production/staging branch
+#   - Database: Hosted on Azure SQL Database (T-SQL) with Azure Blob Storage media
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml --env-file .env.render up -d --build

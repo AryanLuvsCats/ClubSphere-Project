@@ -113,6 +113,12 @@ async def lifespan(app: FastAPI):
     # ones. Use Alembic migrations for schema changes.
     if settings.AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(bind=engine)
+        try:
+            from app.services.analytics import ensure_analytics_views, ensure_media_columns
+            ensure_media_columns(engine)
+            ensure_analytics_views(engine)
+        except Exception:
+            logger.exception("Analytics view creation warning")
     seed_baseline_data()
     yield
     # Shutdown logic: cleanly dispose the database connection pool
