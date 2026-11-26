@@ -383,12 +383,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Pioneering Artificial Intelligence, Machine Learning & Intelligent Systems**\n\n"
-                    "• **Category:** Technology / AI\n"
-                    "• **Focus:** Artificial Intelligence, Machine Learning, deep learning workshops, and data science hackathons.\n"
-                    "• **Meeting Schedule:** Every Wednesday at 5:00 PM | Turing AI Research Lab (Block B, Room 204)\n"
-                    "• **Contact Email:** aiml.club@clubsphere.edu\n"
-                    "• **Key Initiatives:** Weekly research paper reviews, Kaggle sprint competitions, PyTorch/TensorFlow bootcamps, and foundational Generative AI workshops."
+                    "Pioneering Artificial Intelligence, Machine Learning & Intelligent Systems.\n\n"
+                    "• Category: Technology / AI\n"
+                    "• Focus: Artificial Intelligence, Machine Learning, deep learning workshops, and data science hackathons.\n"
+                    "• Meeting Schedule: Every Wednesday at 5:00 PM | Turing AI Research Lab (Block B, Room 204)\n"
+                    "• Contact Email: aiml.club@clubsphere.edu\n"
+                    "• Key Initiatives: Weekly research paper reviews, Kaggle sprint competitions, PyTorch/TensorFlow bootcamps, and foundational Generative AI workshops."
                 ),
                 "members": [students[0], students[7], students[4], students[11], students[14]],
                 "events": [
@@ -474,12 +474,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Building the Future of Autonomous Machines & Embedded Robotics**\n\n"
-                    "• **Category:** Engineering / Robotics\n"
-                    "• **Focus:** Hardware prototyping, autonomous robotics, IoT, and inter-college bot competitions.\n"
-                    "• **Meeting Schedule:** Every Tuesday & Friday at 4:30 PM | Innovation Workshop (Block C, Lab 102)\n"
-                    "• **Contact Email:** robox@clubsphere.edu\n"
-                    "• **Key Initiatives:** ROS2 autonomous rovers, drone design, battle-bot fabrication, microcontroller prototyping, and national robotic combat circuits."
+                    "Building the Future of Autonomous Machines & Embedded Robotics.\n\n"
+                    "• Category: Engineering / Robotics\n"
+                    "• Focus: Hardware prototyping, autonomous robotics, IoT, and inter-college bot competitions.\n"
+                    "• Meeting Schedule: Every Tuesday & Friday at 4:30 PM | Innovation Workshop (Block C, Lab 102)\n"
+                    "• Contact Email: robox@clubsphere.edu\n"
+                    "• Key Initiatives: ROS2 autonomous rovers, drone design, battle-bot fabrication, microcontroller prototyping, and national robotic combat circuits."
                 ),
                 "members": [students[1], students[8], students[0], students[4], students[14]],
                 "events": [
@@ -565,12 +565,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Visual Storytelling, Aesthetic Exploration & Contemporary Creative Arts**\n\n"
-                    "• **Category:** Arts & Culture\n"
-                    "• **Focus:** Painting, sketching, digital illustration, campus murals, and annual art exhibitions.\n"
-                    "• **Meeting Schedule:** Every Thursday at 4:00 PM | Atelier Fine Arts Studio (Block A, Studio 3)\n"
-                    "• **Contact Email:** finearts@clubsphere.edu\n"
-                    "• **Key Initiatives:** Live sketching walks, watercolor galleries, collaborative campus wall murals, Procreate digital masterclasses, and the Annual University Arts Gala."
+                    "Visual Storytelling, Aesthetic Exploration & Contemporary Creative Arts.\n\n"
+                    "• Category: Arts & Culture\n"
+                    "• Focus: Painting, sketching, digital illustration, campus murals, and annual art exhibitions.\n"
+                    "• Meeting Schedule: Every Thursday at 4:00 PM | Atelier Fine Arts Studio (Block A, Studio 3)\n"
+                    "• Contact Email: finearts@clubsphere.edu\n"
+                    "• Key Initiatives: Live sketching walks, watercolor galleries, collaborative campus wall murals, Procreate digital masterclasses, and the Annual University Arts Gala."
                 ),
                 "members": [students[2], students[9], students[5], students[12]],
                 "events": [
@@ -656,12 +656,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Fostering Rigorous Legal Advocacy, Constitutional Jurisprudence & Public Discourse**\n\n"
-                    "• **Category:** Law / Debate\n"
-                    "• **Focus:** Mock trial competitions, constitutional law debates, legal drafting, and public speaking.\n"
-                    "• **Meeting Schedule:** Every Monday at 5:30 PM | Justice H.R. Khanna Moot Court Hall (Law Block)\n"
-                    "• **Contact Email:** mootcourt@clubsphere.edu\n"
-                    "• **Key Initiatives:** Appellate brief drafting, national inter-university mock trials, parliamentary debating tournaments, and judicial citation workshops."
+                    "Fostering Rigorous Legal Advocacy, Constitutional Jurisprudence & Public Discourse.\n\n"
+                    "• Category: Law / Debate\n"
+                    "• Focus: Mock trial competitions, constitutional law debates, legal drafting, and public speaking.\n"
+                    "• Meeting Schedule: Every Monday at 5:30 PM | Justice H.R. Khanna Moot Court Hall (Law Block)\n"
+                    "• Contact Email: mootcourt@clubsphere.edu\n"
+                    "• Key Initiatives: Appellate brief drafting, national inter-university mock trials, parliamentary debating tournaments, and judicial citation workshops."
                 ),
                 "members": [students[3], students[10], students[2], students[5]],
                 "events": [
@@ -747,12 +747,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Competitive Programming, Open-Source Engineering & Software Architecture**\n\n"
-                    "• **Category:** Technology / Programming\n"
-                    "• **Focus:** Competitive programming, open-source contributions, web/app development, and coding bootcamps.\n"
-                    "• **Meeting Schedule:** Every Saturday at 11:00 AM | Central Computing Lab 1 (Block D)\n"
-                    "• **Contact Email:** codex@clubsphere.edu\n"
-                    "• **Key Initiatives:** LeetCode/Codeforces weekly contest prep, ACM-ICPC regional training, Google Summer of Code mentorship, and 24-hour hack nights."
+                    "Competitive Programming, Open-Source Engineering & Software Architecture.\n\n"
+                    "• Category: Technology / Programming\n"
+                    "• Focus: Competitive programming, open-source contributions, web/app development, and coding bootcamps.\n"
+                    "• Meeting Schedule: Every Saturday at 11:00 AM | Central Computing Lab 1 (Block D)\n"
+                    "• Contact Email: codex@clubsphere.edu\n"
+                    "• Key Initiatives: LeetCode/Codeforces weekly contest prep, ACM-ICPC regional training, Google Summer of Code mentorship, and 24-hour hack nights."
                 ),
                 "members": [students[4], students[11], students[14], students[0], students[1]],
                 "events": [
@@ -838,12 +838,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Creative Nonfiction, Spoken Word Poetry, Book Circles & Campus Journalism**\n\n"
-                    "• **Category:** Literature & Media\n"
-                    "• **Focus:** Creative writing, poetry slams, book clubs, campus newsletters, and editorial publishing.\n"
-                    "• **Meeting Schedule:** Every Friday at 3:30 PM | University Central Library (Reading Terrace)\n"
-                    "• **Contact Email:** literary@clubsphere.edu\n"
-                    "• **Key Initiatives:** 'The Campus Chronicle' monthly student publication, spoken-word open mic evenings, novel dissection reading circles, and flash-fiction contests."
+                    "Creative Nonfiction, Spoken Word Poetry, Book Circles & Campus Journalism.\n\n"
+                    "• Category: Literature & Media\n"
+                    "• Focus: Creative writing, poetry slams, book clubs, campus newsletters, and editorial publishing.\n"
+                    "• Meeting Schedule: Every Friday at 3:30 PM | University Central Library (Reading Terrace)\n"
+                    "• Contact Email: literary@clubsphere.edu\n"
+                    "• Key Initiatives: 'The Campus Chronicle' monthly student publication, spoken-word open mic evenings, novel dissection reading circles, and flash-fiction contests."
                 ),
                 "members": [students[5], students[12], students[2], students[9], students[3]],
                 "events": [
@@ -929,12 +929,12 @@ def seed_clubs() -> None:
                     },
                 ],
                 "description": (
-                    "**Decoding Biological Systems, Genetic Innovation & Environmental Sustainability**\n\n"
-                    "• **Category:** Science / Biotech\n"
-                    "• **Focus:** Biotechnology, bioinformatics, environmental sustainability projects, and bio-research seminars.\n"
-                    "• **Meeting Schedule:** Every Wednesday at 4:30 PM | Bio-Engineering Research Lab (Block E, Room 108)\n"
-                    "• **Contact Email:** bioverse@clubsphere.edu\n"
-                    "• **Key Initiatives:** Wet-lab molecular biology techniques, genomic sequence analysis, campus organic composting projects, CRISPR discussion circles, and biotech symposiums."
+                    "Decoding Biological Systems, Genetic Innovation & Environmental Sustainability.\n\n"
+                    "• Category: Science / Biotech\n"
+                    "• Focus: Biotechnology, bioinformatics, environmental sustainability projects, and bio-research seminars.\n"
+                    "• Meeting Schedule: Every Wednesday at 4:30 PM | Bio-Engineering Research Lab (Block E, Room 108)\n"
+                    "• Contact Email: bioverse@clubsphere.edu\n"
+                    "• Key Initiatives: Wet-lab molecular biology techniques, genomic sequence analysis, campus organic composting projects, CRISPR discussion circles, and biotech symposiums."
                 ),
                 "members": [students[6], students[13], students[1], students[7]],
                 "events": [

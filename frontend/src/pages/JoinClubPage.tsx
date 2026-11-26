@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useJoinClub } from '../hooks/useJoinClub'
+import { stripMarkdown } from '../lib/stripMarkdown'
 import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 
 export default function JoinClubPage() {
@@ -88,7 +89,9 @@ export default function JoinClubPage() {
                       {club.program_name ?? 'Unassigned program'}
                     </p>
                     {club.description?.trim() && (
-                      <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-relaxed text-olive">{club.description}</p>
+                      <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-relaxed text-olive">
+                        {stripMarkdown(club.description)}
+                      </p>
                     )}
                     <p className="mt-4 border-t border-rose/25 pt-3 text-xs text-olive">
                       {club.member_count ?? 0} member{(club.member_count ?? 0) === 1 ? '' : 's'}

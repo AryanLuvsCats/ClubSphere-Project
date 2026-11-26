@@ -24,6 +24,37 @@ logger = logging.getLogger("clubsphere")
 setup_secure_logging()
 
 
+def sanitize_club_markdown(db: Session) -> int:
+    """Idempotently strip literal raw markdown formatting tokens from club descriptions and motives."""
+    import re
+    from app.models.models import Club
+
+    def _strip(val: str | None) -> str | None:
+        if not val or ("**" not in val and "__" not in val and "`" not in val):
+            return val
+        cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", val)
+        cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
+        cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
+        cleaned = cleaned.replace("**", "").replace("``", "")
+        return cleaned.strip()
+
+    updated = 0
+    try:
+        clubs = db.query(Club).all()
+        for club in clubs:
+            new_desc = _strip(club.Description)
+            new_motives = _strip(club.Motives)
+            if new_desc != club.Description or new_motives != club.Motives:
+                club.Description = new_desc
+                club.Motives = new_motives
+                updated += 1
+        if updated:
+            db.commit()
+    except Exception:
+        db.rollback()
+    return updated
+
+
 def seed_baseline_data():
     """Ensure baseline roles and academic data (branches + programs) exist for local development and testing."""
     from app.core.database import SessionLocal
@@ -51,6 +82,11 @@ def seed_baseline_data():
                 summary["branches"],
                 summary["programs"],
             )
+
+        # Sanitize existing club descriptions/motives so markdown tokens don't break CSS drop-caps
+        cleaned_clubs = sanitize_club_markdown(db)
+        if cleaned_clubs:
+            logger.info("Sanitized markdown formatting in %s club records.", cleaned_clubs)
 
         # Clean up any expired rate limiting throttle records
         from app.core.rate_limit import cleanup_expired_throttle_rows

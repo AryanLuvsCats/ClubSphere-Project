@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useClubs } from '../hooks/useClubs'
 import { formatDate } from '../lib/format'
+import { stripMarkdown } from '../lib/stripMarkdown'
 import ProgramSelector from '../components/ProgramSelector'
 import { EmptyState, ErrorNote, PageHeader, SkeletonGrid, StatusBadge } from '../components/ui'
 
@@ -77,7 +78,7 @@ export default function ClubsPage() {
                   <h2 className="text-2xl font-semibold leading-tight text-bean hover:text-blood">{club.name}</h2>
                 </Link>
                 <p className="gazette-club-description mt-3 line-clamp-3 text-sm leading-relaxed text-olive">
-                  {club.description?.trim() || 'No description has been provided for this club yet.'}
+                  {stripMarkdown(club.description) || 'No description has been provided for this club yet.'}
                 </p>
 
                 <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-rose/25 pt-4 text-xs">

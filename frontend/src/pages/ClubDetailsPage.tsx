@@ -5,6 +5,7 @@ import { clubService } from '../services/clubService'
 import type { ClubDetail } from '../domain/types'
 import { ErrorNote, StatusBadge } from '../components/ui'
 import { formatDate } from '../lib/format'
+import { stripMarkdown } from '../lib/stripMarkdown'
 
 function DetailIcon({ kind }: { kind: 'vision' | 'people' | 'calendar' | 'award' | 'email' | 'phone' }) {
   const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
@@ -163,7 +164,7 @@ export default function ClubDetailsPage() {
 
             {club.description && (
               <p className="text-sm sm:text-base leading-relaxed text-olive max-w-xl">
-                {club.description}
+                {stripMarkdown(club.description)}
               </p>
             )}
 
@@ -248,7 +249,7 @@ export default function ClubDetailsPage() {
           What We Stand For &amp; Build Together
         </h2>
         <div className="prose prose-sm max-w-none text-bean leading-relaxed whitespace-pre-line text-sm sm:text-base">
-          {club.motives ||
+          {stripMarkdown(club.motives) ||
             'This club provides students with collaborative spaces to pioneer projects, develop industry-grade competencies, and lead peer workshops across their field of study.'}
         </div>
       </section>
